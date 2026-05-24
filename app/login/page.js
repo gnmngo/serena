@@ -82,8 +82,8 @@ export default function LoginPage() {
       }
 
       const destination = profile.role === 'admin' ? '/admin/dashboard' : profile.role === 'faculty' ? '/faculty/dashboard' : '/student/dashboard';
-      router.push(destination);
-      router.refresh();
+      // Force full page reload to sync session cookie
+      window.location.href = destination;
     } else {
       if (selectedRole === 'admin') {
         toast.error('Admin accounts cannot be created through sign up. Contact an existing admin.');
@@ -131,7 +131,6 @@ export default function LoginPage() {
     setLoading(false);
   }
 
-  // Role selection screen (white background → dark logo)
   if (!selectedRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white p-6">
@@ -166,7 +165,6 @@ export default function LoginPage() {
     );
   }
 
-  // Split-screen login (left panel dark background → white logo)
   return (
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 bg-[#343434] flex-col items-center justify-center p-8 text-white">
