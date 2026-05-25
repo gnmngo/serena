@@ -146,7 +146,7 @@ export default function Header({ onMenuClick }) {
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between px-6 py-3">
-        {/* Left section: menu button + page title (no logo) */}
+        {/* Left section: menu button + page title (no redundant path) */}
         <div className="flex items-center gap-4">
           <button onClick={onMenuClick} className="lg:hidden text-gray-600 hover:text-gray-900">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,6 @@ export default function Header({ onMenuClick }) {
           </button>
           <div>
             <h1 className="text-xl font-semibold text-gray-800 capitalize">{pageTitle}</h1>
-            <p className="text-xs text-gray-500 hidden md:block">{pathname}</p>
           </div>
         </div>
 
@@ -169,7 +168,7 @@ export default function Header({ onMenuClick }) {
               placeholder="Search announcements, documents, events..."
               className="w-full pl-9 pr-4 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
               onFocus={() => searchQuery.length >= 2 && setShowSuggestions(true)}
             />
           </div>
