@@ -17,12 +17,33 @@ export default function ManageSuggestions() {
     setSuggestions(data || []);
   }
 
-  async function updateStatus(id, status) {
-    const { error } = await supabase.from('suggestions').update({ status, updated_at: new Date() }).eq('id', id);
-    if (error) toast.error('Error updating status');
-    else {
+  async function updateStatus(id, status, response = '') {
+    const { error } = await supabase
+      .from('suggestions')
+      .update({ status, admin_response: response, updated_at: new Date() })
+      .eq('id', id);
+    if (error) {
+      toast.error('Error updating status');
+    } else {
       toast.success(`Suggestion marked as ${status}`);
       fetchSuggestions();
+
+      // --- Add notification for the suggestion author ---
+      const { data: suggestion } = await supabase
+        .from('suggestions')
+        .select('user_id, title')
+        .eq('id', id)
+        .single();
+      if (suggestion && suggestion.user_id) {
+        await supabase.from('user_notifications').insert({
+          user_id: suggestion.user_id,
+          title: `Suggestion ${status}`,
+          message: `Your suggestion "${suggestion.title.substring(0, 50)}" has been ${status}.`,
+          type: 'suggestion',
+          link: '/suggestions-board',
+          is_read: false,
+        });
+      }
     }
   }
 
