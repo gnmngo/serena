@@ -9,14 +9,12 @@ async function deleteUser(formData) {
   const userId = formData.get('userId');
   if (!userId) return;
 
-  // Use service role client (bypasses RLS)
-  const supabaseAdmin = createClient(); // this uses the service role key via env var
+  const supabaseAdmin = createClient(); // uses service role key from env
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (error) {
     console.error('Delete user error:', error);
     throw new Error('Failed to delete user');
   }
-  // Also delete from profiles (cascades or manual)
   await supabaseAdmin.from('profiles').delete().eq('id', userId);
   revalidatePath('/admin/users');
 }
@@ -29,13 +27,10 @@ export default async function AdminUsersPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') redirect('/login');
 
-  // Fetch all users (join auth.users with profiles)
   const { data: usersData } = await supabase
     .from('profiles')
     .select('id, email, role, full_name, student_id, created_at')
     .order('created_at', { ascending: false });
-
-  // For email, we might also need auth.users email; profiles already has email
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -43,7 +38,6 @@ export default async function AdminUsersPage() {
         <h1 className="text-3xl font-bold">Manage Users</h1>
         <Link href="/admin/dashboard" className="btn-secondary">← Back to Dashboard</Link>
       </div>
-
       <div className="overflow-x-auto">
         <table className="w-full bg-white rounded-xl shadow">
           <thead className="bg-gray-50">
