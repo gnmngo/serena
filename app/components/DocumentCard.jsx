@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import DocumentPreview from './DocumentPreview';
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';  // Fixed path
 import toast from 'react-hot-toast';
 
 export default function DocumentCard({ post, isAdmin }) {
@@ -23,7 +23,7 @@ export default function DocumentCard({ post, isAdmin }) {
       toast.error('Delete failed: ' + error.message);
     } else {
       toast.success('Document deleted');
-      router.refresh(); // re‑fetch server data
+      router.refresh();
     }
     setDeleting(false);
     setShowDeleteModal(false);
