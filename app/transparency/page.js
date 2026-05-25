@@ -136,7 +136,9 @@ export default async function TransparencyPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {transactions?.length === 0 ? (
-                <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">No transactions recorded yet.使用</tr>
+                <tr>
+                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No transactions recorded yet.</td>
+                </tr>
               ) : (
                 transactions?.map((tx, idx) => (
                   <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50/30 hover:bg-gray-50'}>
