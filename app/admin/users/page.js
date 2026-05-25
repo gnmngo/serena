@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { deleteUserAction } from '@/app/actions/deleteUser';
+import { deleteUserAction } from '../../actions/deleteUser'; // relative import
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -23,7 +23,7 @@ export default function AdminUsersPage() {
         if (fetchError) throw fetchError;
         setUsers(data || []);
       } catch (err) {
-        console.error('Fetch error:', err);
+        console.error(err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -38,8 +38,6 @@ export default function AdminUsersPage() {
       if (result.success) {
         toast.success('User deleted');
         setUsers(prev => prev.filter(u => u.id !== userId));
-      } else {
-        toast.error(result.error || 'Delete failed');
       }
     } catch (err) {
       toast.error(err.message);
@@ -48,7 +46,7 @@ export default function AdminUsersPage() {
   }
 
   if (loading) return <div className="p-8">Loading users...</div>;
-  if (error) return <div className="p-8 text-red-500">Error loading users: {error}</div>;
+  if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -58,7 +56,15 @@ export default function AdminUsersPage() {
       </div>
       <div className="overflow-x-auto">
         <table className="w-full bg-white rounded-xl shadow">
-          <thead className="bg-gray-50">…</thead>
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3 text-left">Email</th>
+              <th className="p-3 text-left">Full Name</th>
+              <th className="p-3 text-left">Role</th>
+              <th className="p-3 text-left">Student ID</th>
+              <th className="p-3 text-center">Actions</th>
+            </tr>
+          </thead>
           <tbody>
             {users.map(user => (
               <tr key={user.id} className="border-t">
@@ -67,7 +73,9 @@ export default function AdminUsersPage() {
                 <td className="p-3 capitalize">{user.role}</td>
                 <td className="p-3">{user.student_id || '-'}</td>
                 <td className="p-3 text-center">
-                  <button onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })} className="text-red-500 hover:text-red-700">Delete</button>
+                  <button onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })} className="text-red-500 hover:text-red-700">
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
