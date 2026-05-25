@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { deleteUserAction } from '../../actions/deleteUser'; // relative import
+import { deleteUserAction } from '../../actions/deleteUser'; // relative import – correct!
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -73,7 +73,10 @@ export default function AdminUsersPage() {
                 <td className="p-3 capitalize">{user.role}</td>
                 <td className="p-3">{user.student_id || '-'}</td>
                 <td className="p-3 text-center">
-                  <button onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })} className="text-red-500 hover:text-red-700">
+                  <button
+                    onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })}
+                    className="text-red-500 hover:text-red-700"
+                  >
                     Delete
                   </button>
                 </td>
