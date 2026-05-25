@@ -44,7 +44,6 @@ export default function LoginPage() {
     setLoading(true);
 
     if (selectedRole === 'student') {
-      // Student login/signup using student ID
       const trimmedStudentId = studentId.trim();
       if (!validateStudentId(trimmedStudentId)) {
         toast.error('Invalid Student ID. Format: 9 digits (YYYY + semester + 4‑digit number)');
@@ -109,7 +108,6 @@ export default function LoginPage() {
         }
       }
     } else {
-      // Faculty or Admin login/signup using email
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
         toast.error('Email is required.');
@@ -118,26 +116,19 @@ export default function LoginPage() {
       }
 
       if (isLogin) {
-        // LOGIN for faculty/admin
         const { error, data } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
         if (error) {
           toast.error('Invalid email or password. Please sign up if you don’t have an account.');
           setLoading(false);
           return;
         }
-        const { data: profile, error: profileFetchError } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
-        if (profileFetchError || !profile) {
-          toast.error('Profile not found. Please contact admin.');
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-        if (profile.role !== selectedRole) {
-          toast.error(`You are registered as ${profile.role}, not ${selectedRole}. Select correct role.`);
+        if (!profile || profile.role !== selectedRole) {
+          toast.error(`You are not registered as a ${selectedRole}. Please select the correct role.`);
           await supabase.auth.signOut();
           setLoading(false);
           return;
@@ -145,7 +136,6 @@ export default function LoginPage() {
         const destination = selectedRole === 'admin' ? '/admin/dashboard' : '/faculty/dashboard';
         window.location.href = destination;
       } else {
-        // SIGNUP for faculty (admin signup not allowed)
         if (selectedRole === 'admin') {
           toast.error('Admin accounts cannot be created here. Please contact an existing admin.');
           setLoading(false);
@@ -159,7 +149,6 @@ export default function LoginPage() {
           return;
         }
         if (data.user) {
-          // Faculty profile creation with detailed error logging
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
@@ -169,10 +158,9 @@ export default function LoginPage() {
               full_name: fullName,
               student_id: null,
             }, { onConflict: 'id' });
-
           if (profileError) {
-            console.error('Faculty profile upsert error details:', profileError);
-            toast.error('Error creating profile: ' + profileError.message);
+            console.error('Faculty profile upsert error:', profileError);
+            toast.error('Error creating profile. Please contact admin.');
           } else {
             toast.success('Account created! You can now log in.');
             setIsLogin(true);
@@ -184,7 +172,6 @@ export default function LoginPage() {
     setLoading(false);
   }
 
-  // Role selection screen
   if (!selectedRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white p-6">
@@ -221,6 +208,7 @@ export default function LoginPage() {
 
   const isStudent = selectedRole === 'student';
   const isAdmin = selectedRole === 'admin';
+  const showSignupToggle = !isAdmin; // Admin cannot sign up
 
   return (
     <div className="min-h-screen flex">
@@ -296,7 +284,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {!isLogin && (
+            {!isLogin && !isAdmin && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Full Name</label>
@@ -336,12 +324,15 @@ export default function LoginPage() {
               {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Sign Up')}
             </button>
           </form>
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="mt-4 text-sm text-[#343434] hover:underline w-full text-center"
-          >
-            {isLogin ? `Need a ${selectedRole} account? Sign up` : 'Already have an account? Login'}
-          </button>
+
+          {showSignupToggle && (
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="mt-4 text-sm text-[#343434] hover:underline w-full text-center"
+            >
+              {isLogin ? `Need a ${selectedRole} account? Sign up` : 'Already have an account? Login'}
+            </button>
+          )}
         </div>
       </div>
     </div>
