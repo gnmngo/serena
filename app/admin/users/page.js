@@ -1,16 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ open: false, userId: null, userEmail: '' });
   const supabase = createClient();
-  const router = useRouter();
 
   useEffect(() => {
     async function fetchUsers() {
@@ -32,7 +32,6 @@ export default function AdminUsersPage() {
   }, []);
 
   async function deleteUser(userId) {
-    if (!confirm('Are you sure? This will permanently delete the user.')) return;
     try {
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
@@ -49,6 +48,7 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error('Network error: ' + err.message);
     }
+    setDeleteModal({ open: false, userId: null, userEmail: '' });
   }
 
   if (loading) return <div className="p-8">Loading users...</div>;
@@ -79,7 +79,10 @@ export default function AdminUsersPage() {
                 <td className="p-3 capitalize">{user.role}</td>
                 <td className="p-3">{user.student_id || '-'}</td>
                 <td className="p-3 text-center">
-                  <button onClick={() => deleteUser(user.id)} className="text-red-500 hover:text-red-700">
+                  <button
+                    onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })}
+                    className="text-red-500 hover:text-red-700"
+                  >
                     Delete
                   </button>
                 </td>
@@ -88,6 +91,17 @@ export default function AdminUsersPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, userId: null, userEmail: '' })}
+        onConfirm={() => deleteUser(deleteModal.userId)}
+        title="Delete User"
+        message={`Are you sure you want to delete "${deleteModal.userEmail}"? This action cannot be undone and will remove all associated data.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
