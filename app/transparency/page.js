@@ -4,8 +4,18 @@ import { getUserRole } from '@/utils/getUserRole';
 import StatsCard from '@/components/ui/StatsCard';
 import { DocumentTextIcon, CurrencyDollarIcon, ChartPieIcon } from '@heroicons/react/24/outline';
 import ExportButton from '@/components/ExportButton';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { revalidatePath } from 'next/cache';
+
+// Helper to get file icon based on extension
+function getFileIcon(url) {
+  if (!url) return '📄';
+  const ext = url.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return '📑';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
+  if (ext === 'doc' || ext === 'docx') return '📝';
+  if (ext === 'xls' || ext === 'xlsx') return '📊';
+  return '📎';
+}
 
 export default async function TransparencyPage() {
   const supabase = await createClient();
@@ -35,13 +45,9 @@ export default async function TransparencyPage() {
 
   return (
     <div className="space-y-8 animate-fadeInUp">
-      {/* Header with buttons */}
       <div className="flex justify-between items-center flex-wrap gap-4">
         <h1 className="text-3xl font-bold">Transparency Board</h1>
-        <div className="flex gap-2">
-          {isAdmin && <Link href="/transparency/new" className="btn-primary">+ Add Post</Link>}
-          <ExportButton data={transactions || []} fileName="budget_transactions.csv" />
-        </div>
+        {isAdmin && <Link href="/transparency/new" className="btn-primary">+ Add Post</Link>}
       </div>
 
       {/* Stats Cards */}
@@ -51,11 +57,14 @@ export default async function TransparencyPage() {
         <StatsCard title="Remaining Balance" value={`₱${balance.toLocaleString()}`} icon={<DocumentTextIcon className="w-6 h-6" />} color="primary" />
       </div>
 
-      {/* Budget Transactions Table – professional design */}
+      {/* Budget Transactions Table with export button next to header */}
       <section className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center flex-wrap gap-3">
           <h2 className="text-lg font-semibold text-gray-800">💰 Budget Transactions</h2>
-          {isAdmin && <Link href="/admin/budget" className="text-sm text-primary hover:underline">Manage →</Link>}
+          <div className="flex gap-2">
+            <ExportButton data={transactions || []} fileName="cec_budget.csv" />
+            {isAdmin && <Link href="/admin/budget" className="text-sm text-primary hover:underline">Manage →</Link>}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -75,9 +84,7 @@ export default async function TransparencyPage() {
               ) : (
                 transactions?.map((tx, idx) => (
                   <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50/30 hover:bg-gray-50'}>
-                    <td className="px-6 py-3 whitespace-nowrap text-gray-700">
-                      {new Date(tx.transaction_date).toLocaleDateString()}
-                    </td>
+                    <td className="px-6 py-3 whitespace-nowrap text-gray-700">{new Date(tx.transaction_date).toLocaleDateString()}</td>
                     <td className="px-6 py-3 text-gray-700">{tx.description}</td>
                     <td className={`px-6 py-3 text-right font-mono font-medium ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
                       ₱{Math.abs(tx.amount).toLocaleString()}
@@ -91,13 +98,13 @@ export default async function TransparencyPage() {
         </div>
       </section>
 
-      {/* Official Documents Section */}
+      {/* Official Documents with file icons and download links */}
       <section>
         <h2 className="text-lg font-semibold mb-3">📁 Official Documents</h2>
         {!posts?.length && <p className="text-gray-500 text-sm">No documents posted yet.</p>}
         <div className="grid gap-4">
           {posts?.map(post => (
-            <div key={post.id} className="card p-5">
+            <div key={post.id} id={`doc-${post.id}`} className="card p-5">
               <div className="flex justify-between items-start flex-wrap gap-2">
                 <h3 className="font-semibold text-lg">{post.title}</h3>
                 <span className="badge badge-category">{post.category}</span>
@@ -105,7 +112,11 @@ export default async function TransparencyPage() {
               <p className="text-gray-600 text-sm mt-2">{post.content}</p>
               <div className="flex justify-between items-center mt-3 text-xs text-gray-400">
                 <span>{new Date(post.published_at).toLocaleDateString()}</span>
-                {post.file_url && <a href={post.file_url} target="_blank" className="text-blue-500 hover:underline">📎 Attachment</a>}
+                {post.file_url && (
+                  <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline">
+                    <span>{getFileIcon(post.file_url)}</span> Download
+                  </a>
+                )}
               </div>
               {isAdmin && (
                 <div className="mt-3">
