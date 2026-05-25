@@ -14,19 +14,15 @@ export async function POST(request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Delete from auth.users
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (authError) {
-      console.error('Auth delete error:', authError);
-      return NextResponse.json({ error: `Auth error: ${authError.message}` }, { status: 500 });
+    const { data, error } = await supabaseAdmin.rpc('delete_user_by_id', { user_id: userId });
+    if (error) {
+      console.error('RPC error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Delete from profiles (optional, cascade may handle)
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    await supabase.from('profiles').delete().eq('id', userId);
+    if (!data) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

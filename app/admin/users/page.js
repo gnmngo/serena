@@ -33,15 +33,20 @@ export default function AdminUsersPage() {
 
   async function deleteUser(userId) {
     try {
-      // Dynamically import the server action only when needed
-      const { deleteUserAction } = await import('../../actions/deleteUser');
-      const result = await deleteUserAction(userId);
-      if (result.success) {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
         toast.success('User deleted');
         setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        toast.error(data.error || 'Delete failed');
       }
     } catch (err) {
-      toast.error(err.message);
+      toast.error('Network error: ' + err.message);
     } finally {
       setDeleteModal({ open: false, userId: null, userEmail: '' });
     }
