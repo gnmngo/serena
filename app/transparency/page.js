@@ -6,16 +6,6 @@ import { DocumentTextIcon, CurrencyDollarIcon, ChartPieIcon } from '@heroicons/r
 import ExportButton from '@/components/ExportButton';
 import DocumentCard from '@/components/DocumentCard';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-
-async function deletePost(formData) {
-  'use server';
-  const id = formData.get('id');
-  const supabase = await createClient();
-  await supabase.from('transparency_posts').delete().eq('id', id);
-  revalidatePath('/transparency');
-  redirect('/transparency');
-}
 
 async function adjustBalance(formData) {
   'use server';
@@ -25,7 +15,7 @@ async function adjustBalance(formData) {
   const supabase = await createClient();
   await supabase.from('budget_transactions').insert({
     transaction_date: new Date(),
-    description: description || `Manual adjustment`,
+    description: description || 'Manual adjustment',
     amount: amount,
     category: 'allocation',
   });
@@ -81,11 +71,24 @@ export default async function TransparencyPage() {
           <form action={adjustBalance} className="flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[150px]">
               <label className="block text-xs text-gray-500 mb-1">Amount (positive = add, negative = deduct)</label>
-              <input type="number" step="0.01" name="amount" placeholder="e.g., 1000 or -500" className="w-full border p-2 rounded" required />
+              <input
+                type="number"
+                step="0.01"
+                name="amount"
+                placeholder="e.g., 1000 or -500"
+                className="w-full border p-2 rounded"
+                required
+              />
             </div>
             <div className="flex-[2] min-w-[200px]">
               <label className="block text-xs text-gray-500 mb-1">Reason / Description</label>
-              <input type="text" name="description" placeholder="e.g., Opening balance, correction" className="w-full border p-2 rounded" required />
+              <input
+                type="text"
+                name="description"
+                placeholder="e.g., Opening balance, correction"
+                className="w-full border p-2 rounded"
+                required
+              />
             </div>
             <button type="submit" className="btn-secondary">Apply Adjustment</button>
           </form>
@@ -114,10 +117,12 @@ export default async function TransparencyPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {transactions?.length === 0 ? (
-                <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">No transactions recorded yet.使用</td></tr>
+                <tr>
+                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No transactions recorded yet.</td>
+                </tr>
               ) : (
                 transactions?.map((tx, idx) => (
-                  <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}>
+                  <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50/30 hover:bg-gray-50'}>
                     <td className="px-6 py-3 whitespace-nowrap">{new Date(tx.transaction_date).toLocaleDateString()}</td>
                     <td className="px-6 py-3">{tx.description}</td>
                     <td className={`px-6 py-3 text-right font-mono font-medium ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -132,13 +137,13 @@ export default async function TransparencyPage() {
         </div>
       </section>
 
-      {/* Official Documents with preview */}
+      {/* Official Documents with preview and professional delete modal */}
       <section>
         <h2 className="text-lg font-semibold mb-3">📁 Official Documents</h2>
         {!posts?.length && <p className="text-gray-500 text-sm">No documents posted yet.</p>}
         <div className="grid gap-4">
           {posts?.map(post => (
-            <DocumentCard key={post.id} post={post} isAdmin={isAdmin} deletePost={deletePost} />
+            <DocumentCard key={post.id} post={post} isAdmin={isAdmin} />
           ))}
         </div>
       </section>
