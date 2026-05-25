@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { deleteUserAction } from '@/app/actions/deleteUser';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -33,20 +34,15 @@ export default function AdminUsersPage() {
 
   async function deleteUser(userId) {
     try {
-      const res = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const result = await deleteUserAction(userId);
+      if (result.success) {
         toast.success('User deleted');
         setUsers(prev => prev.filter(u => u.id !== userId));
       } else {
-        toast.error(data.error || 'Delete failed');
+        toast.error(result.error || 'Delete failed');
       }
     } catch (err) {
-      toast.error('Network error: ' + err.message);
+      toast.error(err.message);
     }
     setDeleteModal({ open: false, userId: null, userEmail: '' });
   }
@@ -62,15 +58,7 @@ export default function AdminUsersPage() {
       </div>
       <div className="overflow-x-auto">
         <table className="w-full bg-white rounded-xl shadow">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3 text-left">Email</th>
-              <th className="p-3 text-left">Full Name</th>
-              <th className="p-3 text-left">Role</th>
-              <th className="p-3 text-left">Student ID</th>
-              <th className="p-3 text-center">Actions</th>
-            </tr>
-          </thead>
+          <thead className="bg-gray-50">…</thead>
           <tbody>
             {users.map(user => (
               <tr key={user.id} className="border-t">
@@ -79,25 +67,19 @@ export default function AdminUsersPage() {
                 <td className="p-3 capitalize">{user.role}</td>
                 <td className="p-3">{user.student_id || '-'}</td>
                 <td className="p-3 text-center">
-                  <button
-                    onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Delete
-                  </button>
+                  <button onClick={() => setDeleteModal({ open: true, userId: user.id, userEmail: user.email })} className="text-red-500 hover:text-red-700">Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       <ConfirmDialog
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, userId: null, userEmail: '' })}
         onConfirm={() => deleteUser(deleteModal.userId)}
         title="Delete User"
-        message={`Are you sure you want to delete "${deleteModal.userEmail}"? This action cannot be undone and will remove all associated data.`}
+        message={`Are you sure you want to delete "${deleteModal.userEmail}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
