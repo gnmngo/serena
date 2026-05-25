@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -117,6 +118,7 @@ export default function LoginPage() {
       }
 
       if (isLogin) {
+        // Faculty/Admin login
         const { error, data } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
         if (error) {
           toast.error('Invalid email or password. Please sign up if you don’t have an account.');
@@ -206,7 +208,6 @@ export default function LoginPage() {
     );
   }
 
-  // Role-specific form
   const isStudent = selectedRole === 'student';
   const isFaculty = selectedRole === 'faculty';
   const isAdmin = selectedRole === 'admin';
@@ -277,6 +278,16 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
               />
+            </div>
+
+            {/* Forgot password link for all roles */}
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-[#343434] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             {!isLogin && (
