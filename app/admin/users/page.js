@@ -4,7 +4,6 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { deleteUserAction } from '../../actions/deleteUser'; // relative import – correct!
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
@@ -34,6 +33,8 @@ export default function AdminUsersPage() {
 
   async function deleteUser(userId) {
     try {
+      // Dynamically import the server action only when needed
+      const { deleteUserAction } = await import('../../actions/deleteUser');
       const result = await deleteUserAction(userId);
       if (result.success) {
         toast.success('User deleted');
@@ -41,8 +42,9 @@ export default function AdminUsersPage() {
       }
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setDeleteModal({ open: false, userId: null, userEmail: '' });
     }
-    setDeleteModal({ open: false, userId: null, userEmail: '' });
   }
 
   if (loading) return <div className="p-8">Loading users...</div>;
