@@ -1,36 +1,58 @@
-import { createClient } from '@/utils/supabase/server';
-import { redirect } from 'next/navigation';
-import { revalidatePath } from 'next/cache';
+'use client';
+import { useEffect, useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
-// Server action to delete a user (uses service role key)
-async function deleteUser(formData) {
-  'use server';
-  const userId = formData.get('userId');
-  if (!userId) return;
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const supabase = createClient();
+  const router = useRouter();
 
-  const supabaseAdmin = createClient(); // uses service role key from env
-  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-  if (error) {
-    console.error('Delete user error:', error);
-    throw new Error('Failed to delete user');
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('profiles')
+          .select('id, email, role, full_name, student_id')
+          .order('created_at', { ascending: false });
+        if (fetchError) throw fetchError;
+        setUsers(data || []);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUsers();
+  }, []);
+
+  async function deleteUser(userId) {
+    if (!confirm('Are you sure? This will permanently delete the user.')) return;
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('User deleted');
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        toast.error(data.error || 'Delete failed');
+      }
+    } catch (err) {
+      toast.error('Network error: ' + err.message);
+    }
   }
-  await supabaseAdmin.from('profiles').delete().eq('id', userId);
-  revalidatePath('/admin/users');
-}
 
-export default async function AdminUsersPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'admin') redirect('/login');
-
-  const { data: usersData } = await supabase
-    .from('profiles')
-    .select('id, email, role, full_name, student_id, created_at')
-    .order('created_at', { ascending: false });
+  if (loading) return <div className="p-8">Loading users...</div>;
+  if (error) return <div className="p-8 text-red-500">Error loading users: {error}</div>;
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -42,31 +64,24 @@ export default async function AdminUsersPage() {
         <table className="w-full bg-white rounded-xl shadow">
           <thead className="bg-gray-50">
             <tr>
-              <th className="p-3 text-left text-sm font-semibold">Email</th>
-              <th className="p-3 text-left text-sm font-semibold">Full Name</th>
-              <th className="p-3 text-left text-sm font-semibold">Role</th>
-              <th className="p-3 text-left text-sm font-semibold">Student ID</th>
-              <th className="p-3 text-center text-sm font-semibold">Actions</th>
+              <th className="p-3 text-left">Email</th>
+              <th className="p-3 text-left">Full Name</th>
+              <th className="p-3 text-left">Role</th>
+              <th className="p-3 text-left">Student ID</th>
+              <th className="p-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {usersData?.map(userRow => (
-              <tr key={userRow.id} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="p-3 text-sm">{userRow.email}</td>
-                <td className="p-3 text-sm">{userRow.full_name || '-'}</td>
-                <td className="p-3 text-sm capitalize">{userRow.role}</td>
-                <td className="p-3 text-sm">{userRow.student_id || '-'}</td>
+            {users.map(user => (
+              <tr key={user.id} className="border-t">
+                <td className="p-3">{user.email}</td>
+                <td className="p-3">{user.full_name || '-'}</td>
+                <td className="p-3 capitalize">{user.role}</td>
+                <td className="p-3">{user.student_id || '-'}</td>
                 <td className="p-3 text-center">
-                  <form action={deleteUser}>
-                    <input type="hidden" name="userId" value={userRow.id} />
-                    <button
-                      type="submit"
-                      className="text-red-500 hover:text-red-700 text-sm"
-                      onClick={() => confirm('Are you sure? This will permanently delete the user.')}
-                    >
-                      Delete
-                    </button>
-                  </form>
+                  <button onClick={() => deleteUser(user.id)} className="text-red-500 hover:text-red-700">
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
