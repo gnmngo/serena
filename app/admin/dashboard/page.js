@@ -2,8 +2,8 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import StatsCard from '@/components/ui/StatsCard';
-import { ChartBarIcon, CurrencyDollarIcon, ChatBubbleLeftEllipsisIcon, CalendarIcon, UserGroupIcon } from '@heroicons/react/24/outline';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartBarIcon, CurrencyDollarIcon, ChatBubbleLeftEllipsisIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import ExpenseChart from '@/components/ExpenseChart';
 
 export default async function AdminDashboard() {
   const supabase = await createClient();
@@ -17,7 +17,6 @@ export default async function AdminDashboard() {
   const { data: transactions } = await supabase.from('budget_transactions').select('amount, transaction_date');
   const { count: pendingSuggestions } = await supabase.from('suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending');
   const { count: totalEvents } = await supabase.from('events').select('*', { count: 'exact', head: true });
-  const { count: totalUsers } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
 
   const totalIncome = transactions?.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0) || 0;
   const totalExpenses = transactions?.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0) || 0;
@@ -43,14 +42,7 @@ export default async function AdminDashboard() {
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Recent Expenses Trend</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="amount" stroke="#2563eb" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          <ExpenseChart data={chartData} />
         </div>
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
