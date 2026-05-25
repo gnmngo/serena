@@ -1,23 +1,27 @@
 'use server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function deleteUserAction(userId) {
+  // Log environment variable presence (will appear in Vercel function logs)
+  console.log('Deleting user:', userId);
+  console.log('Has service role key:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
   if (!userId) {
     throw new Error('User ID required');
   }
 
-  const supabase = await createClient(); // regular client (uses anon key)
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { autoRefreshToken: false, persistSession: false }
+    }
+  );
 
-  // Call the secure database function
-  const { data, error } = await supabase.rpc('delete_user_by_id', { user_id: userId });
-
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (error) {
-    console.error('RPC error:', error);
-    throw new Error(`Failed to delete user: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error('User not found');
+    console.error('Delete error:', error);
+    throw new Error(`Delete failed: ${error.message}`);
   }
 
   return { success: true };
