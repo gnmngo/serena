@@ -1,17 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BellIcon, MagnifyingGlassIcon, UserCircleIcon } from '@heroicons/react/24/outline';
-import { Menu } from '@headlessui/react';
+import { BellIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { createClient } from '@/utils/supabase/client';
 import ConfirmDialog from './ConfirmDialog';
 
 export default function Header({ onMenuClick }) {
   const [user, setUser] = useState(null);
-  const [displayName, setDisplayName] = useState('Guest');
+  const [displayName, setDisplayName] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState([]);
@@ -40,7 +38,7 @@ export default function Header({ onMenuClick }) {
         else setDisplayName(profile?.student_id || user.email?.split('@')[0] || 'User');
         await fetchNotifications(user.id);
       } else {
-        setDisplayName('Guest');
+        setDisplayName('');
       }
     };
     getUser();
@@ -96,7 +94,7 @@ export default function Header({ onMenuClick }) {
         .select('id, title')
         .ilike('title', `%${searchQuery}%`)
         .limit(5);
-      
+
       const suggestions = [
         ...(announcements?.map(a => ({ type: 'announcement', id: a.id, title: a.title, href: `/announcements#ann-${a.id}` })) || []),
         ...(transparency?.map(t => ({ type: 'transparency', id: t.id, title: t.title, href: `/transparency#doc-${t.id}` })) || []),
@@ -134,19 +132,14 @@ export default function Header({ onMenuClick }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const pageTitle = pathname === '/' 
-    ? 'Dashboard' 
+  const pageTitle = pathname === '/'
+    ? 'Dashboard'
     : pathname.split('/').pop()?.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase()) || 'SERENA';
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
-  };
 
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between px-6 py-3">
-        {/* Left section: menu button + page title (no redundant path) */}
+        {/* Left: menu button + title */}
         <div className="flex items-center gap-4">
           <button onClick={onMenuClick} className="lg:hidden text-gray-600 hover:text-gray-900">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,7 +182,7 @@ export default function Header({ onMenuClick }) {
           )}
         </div>
 
-        {/* Right section: notifications + user menu */}
+        {/* Right: only notification bell (and optional welcome text) */}
         <div className="flex items-center gap-4">
           <div className="relative" ref={notificationRef}>
             <button
@@ -233,42 +226,20 @@ export default function Header({ onMenuClick }) {
               </div>
             )}
           </div>
-
-          <Menu as="div" className="relative">
-            <Menu.Button className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition" aria-label="User menu">
-              <UserCircleIcon className="w-8 h-8 text-gray-600" />
-              <span className="text-sm text-gray-700 hidden md:inline">{displayName}</span>
-            </Menu.Button>
-            <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 focus:outline-none z-50">
-              <div className="p-2">
-                <div className="px-3 py-2 text-sm text-gray-700 border-b truncate">{displayName}</div>
-                <Menu.Item>
-                  {({ active }) => (
-                    <Link href="/profile" className={`${active && 'bg-gray-100'} w-full text-left px-3 py-2 text-sm rounded-md block`}>
-                      Profile
-                    </Link>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => setShowLogoutModal(true)}
-                      className={`${active && 'bg-gray-100'} w-full text-left px-3 py-2 text-sm rounded-md text-red-600`}
-                    >
-                      Logout
-                    </button>
-                  )}
-                </Menu.Item>
-              </div>
-            </Menu.Items>
-          </Menu>
+          {/* Optional welcome text – can be removed if you prefer even cleaner header */}
+          {displayName && (
+            <span className="text-sm text-gray-600 hidden md:inline-block">Welcome, {displayName}</span>
+          )}
         </div>
       </div>
 
       <ConfirmDialog
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
-        onConfirm={handleLogout}
+        onConfirm={async () => {
+          await supabase.auth.signOut();
+          window.location.href = '/login';
+        }}
         title="Confirm Logout"
         message="Are you sure you want to log out?"
         confirmText="Logout"
