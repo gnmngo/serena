@@ -51,11 +51,10 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      const email = `${trimmedStudentId}@cec.edu.ph`;
+      const studentEmail = `${trimmedStudentId}@cec.edu.ph`;
 
       if (isLogin) {
-        // Student login
-        const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+        const { error, data } = await supabase.auth.signInWithPassword({ email: studentEmail, password });
         if (error) {
           toast.error('Invalid Student ID or password. Please sign up if you don’t have an account.');
           setLoading(false);
@@ -77,8 +76,7 @@ export default function LoginPage() {
         }
         window.location.href = '/student/dashboard';
       } else {
-        // Student signup
-        const { error, data } = await supabase.auth.signUp({ email, password });
+        const { error, data } = await supabase.auth.signUp({ email: studentEmail, password });
         if (error) {
           if (error.message.includes('already registered')) toast.error('Student ID already exists. Please login.');
           else toast.error(error.message);
@@ -95,12 +93,14 @@ export default function LoginPage() {
               enrollment_year: year,
               semester: semester,
               role: 'student',
-              email: email,
+              email: studentEmail,
               full_name: fullName,
               section: section,
             }, { onConflict: 'id' });
-          if (profileError) toast.error('Error creating profile. Please contact admin.');
-          else {
+          if (profileError) {
+            console.error('Student profile upsert error:', profileError);
+            toast.error('Error creating profile. Please contact admin.');
+          } else {
             toast.success('Account created! You can now log in.');
             setIsLogin(true);
             setFullName('');
@@ -118,20 +118,26 @@ export default function LoginPage() {
       }
 
       if (isLogin) {
-        // Faculty/Admin login
+        // LOGIN for faculty/admin
         const { error, data } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
         if (error) {
           toast.error('Invalid email or password. Please sign up if you don’t have an account.');
           setLoading(false);
           return;
         }
-        const { data: profile } = await supabase
+        const { data: profile, error: profileFetchError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', data.user.id)
           .single();
-        if (!profile || profile.role !== selectedRole) {
-          toast.error(`You are not registered as a ${selectedRole}. Please select the correct role.`);
+        if (profileFetchError || !profile) {
+          toast.error('Profile not found. Please contact admin.');
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+        if (profile.role !== selectedRole) {
+          toast.error(`You are registered as ${profile.role}, not ${selectedRole}. Select correct role.`);
           await supabase.auth.signOut();
           setLoading(false);
           return;
@@ -139,7 +145,7 @@ export default function LoginPage() {
         const destination = selectedRole === 'admin' ? '/admin/dashboard' : '/faculty/dashboard';
         window.location.href = destination;
       } else {
-        // Faculty signup only (admin signup not allowed)
+        // SIGNUP for faculty (admin signup not allowed)
         if (selectedRole === 'admin') {
           toast.error('Admin accounts cannot be created here. Please contact an existing admin.');
           setLoading(false);
@@ -153,6 +159,7 @@ export default function LoginPage() {
           return;
         }
         if (data.user) {
+          // Faculty profile creation with detailed error logging
           const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
@@ -162,8 +169,11 @@ export default function LoginPage() {
               full_name: fullName,
               student_id: null,
             }, { onConflict: 'id' });
-          if (profileError) toast.error('Error creating profile. Please contact admin.');
-          else {
+
+          if (profileError) {
+            console.error('Faculty profile upsert error details:', profileError);
+            toast.error('Error creating profile: ' + profileError.message);
+          } else {
             toast.success('Account created! You can now log in.');
             setIsLogin(true);
             setFullName('');
@@ -174,6 +184,7 @@ export default function LoginPage() {
     setLoading(false);
   }
 
+  // Role selection screen
   if (!selectedRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white p-6">
@@ -209,7 +220,6 @@ export default function LoginPage() {
   }
 
   const isStudent = selectedRole === 'student';
-  const isFaculty = selectedRole === 'faculty';
   const isAdmin = selectedRole === 'admin';
 
   return (
@@ -280,12 +290,8 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Forgot password link for all roles */}
             <div className="text-right">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-[#343434] hover:underline"
-              >
+              <Link href="/forgot-password" className="text-sm text-[#343434] hover:underline">
                 Forgot password?
               </Link>
             </div>
