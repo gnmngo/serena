@@ -14,7 +14,9 @@ export async function POST(request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data, error } = await supabaseAdmin.rpc('delete_user_by_id', { user_id: userId });
+    // ✅ Use target_user_id to match the function parameter
+    const { data, error } = await supabaseAdmin.rpc('delete_user_by_id', { target_user_id: userId });
+
     if (error) {
       console.error('RPC error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
