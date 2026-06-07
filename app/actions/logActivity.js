@@ -2,14 +2,13 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount }) {
-  // Debug: log the amount to Vercel function logs
-  console.log('[logActivity] Received amount:', amount);
+  // Ensure amount is a number or null
   let numericAmount = null;
   if (amount !== undefined && amount !== null) {
     const parsed = parseFloat(amount);
     if (!isNaN(parsed)) numericAmount = parsed;
   }
-  console.log('[logActivity] Storing amount:', numericAmount);
+  console.log(`[logActivity] Storing amount: ${numericAmount}`);
 
   try {
     const supabase = await createClient();
@@ -21,7 +20,7 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
-    const { error } = await supabase.from('activity_logs').insert({
+    await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: profile?.role || 'unknown',
@@ -30,10 +29,9 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       entity_id: entityId,
       old_data: oldData,
       new_data: newData,
-      amount: numericAmount,
+      amount: numericAmount,   // ← explicit column
     });
-    if (error) console.error('[logActivity] Insert error:', error);
   } catch (err) {
-    console.error('[logActivity] Exception:', err);
+    console.error('logActivity error:', err);
   }
 }
