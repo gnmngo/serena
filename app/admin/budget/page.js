@@ -64,7 +64,7 @@ export default function BudgetTransactions() {
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,
+          amount: amountNum,   // <-- this must be passed
         });
       }
       setForm({
@@ -102,7 +102,7 @@ export default function BudgetTransactions() {
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
-        amount: toDelete.amount,
+        amount: toDelete.amount,   // <-- this must be passed
       });
       fetchTransactions();
     }

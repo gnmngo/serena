@@ -3,6 +3,9 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount = null }) {
   try {
+    // Debug: log the received amount
+    console.log(`[logActivity] action=${action}, amount received = ${amount}`);
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -13,9 +16,10 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
-    const numericAmount = (amount !== null && !isNaN(amount)) ? parseFloat(amount) : null;
+    // Ensure amount is a number or null
+    const numericAmount = (amount !== undefined && amount !== null && !isNaN(parseFloat(amount))) ? parseFloat(amount) : null;
 
-    await supabase.from('activity_logs').insert({
+    const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: profile?.role || 'unknown',
@@ -26,6 +30,8 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       new_data: newData,
       amount: numericAmount,
     });
+
+    if (error) console.error('Insert error:', error);
   } catch (err) {
     console.error('Failed to log activity:', err);
   }
