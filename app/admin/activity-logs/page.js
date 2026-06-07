@@ -16,27 +16,23 @@ function formatPHTime(utcDateString) {
   return phTime.toLocaleString('en-PH', { hour12: true });
 }
 
-// Generate a detailed, GitHub‑style change description
+// Generate a detailed, GitHub‑style change description including the amount from JSON
 function getDetailedDescription(log) {
-  // For budget transactions, use the stored amount and JSON details
   if (log.entity_type === 'budget_transaction') {
-    const amount = log.amount ? `₱${log.amount.toLocaleString()}` : 'an amount';
     if (log.action === 'INSERT' && log.new_data) {
-      const { description, category, date } = log.new_data;
-      return `Added ${category || 'transaction'}: ${amount} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+      const { description, category, date, amount } = log.new_data;
+      const amountStr = amount ? `₱${amount.toLocaleString()}` : 'an amount';
+      return `Added ${category || 'transaction'}: ${amountStr} for “${description || 'no description'}” on ${date || 'unknown date'}`;
     }
     if (log.action === 'DELETE' && log.old_data) {
-      const { description, category, date } = log.old_data;
-      return `Deleted ${category || 'transaction'}: ${amount} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+      const { description, category, date, amount } = log.old_data;
+      const amountStr = amount ? `₱${amount.toLocaleString()}` : 'an amount';
+      return `Deleted ${category || 'transaction'}: ${amountStr} for “${description || 'no description'}” on ${date || 'unknown date'}`;
     }
   }
-  // Fallback for other entity types
-  if (log.action === 'INSERT') {
-    return `Created new ${log.entity_type}`;
-  }
-  if (log.action === 'DELETE') {
-    return `Removed ${log.entity_type}`;
-  }
+  // Fallback for other entities
+  if (log.action === 'INSERT') return `Created new ${log.entity_type}`;
+  if (log.action === 'DELETE') return `Removed ${log.entity_type}`;
   return `${log.action} ${log.entity_type}`;
 }
 
@@ -91,8 +87,7 @@ export default function ActivityLogsPage() {
       Role: log.user_role,
       Action: log.action,
       Entity: log.entity_type,
-      'Amount (₱)': log.amount ? log.amount.toLocaleString() : '',
-      'Detailed change': getDetailedDescription(log),
+      'What changed': getDetailedDescription(log),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -155,8 +150,7 @@ export default function ActivityLogsPage() {
                   <th className="px-4 py-3 text-left text-sm font-semibold">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold">Amount (₱)</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Detailed change</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">What changed</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,9 +161,6 @@ export default function ActivityLogsPage() {
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
                     <td className="px-4 py-2 text-sm">{log.action}</td>
                     <td className="px-4 py-2 text-sm">{log.entity_type}</td>
-                    <td className="px-4 py-2 text-sm text-right font-mono">
-                      {log.amount ? `₱${log.amount.toLocaleString()}` : '-'}
-                    </td>
                     <td className="px-4 py-2 text-sm">{getDetailedDescription(log)}</td>
                   </tr>
                 ))}
