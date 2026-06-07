@@ -9,7 +9,7 @@ import ExpenseTrendChart from '@/components/analytics/ExpenseTrendChart';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-// Dynamically import the client component to avoid hydration issues
+// Dynamically import the client component to avoid SSR issues
 const TransactionFilters = dynamic(
   () => import('@/components/TransactionFilters'),
   { ssr: false }
@@ -167,7 +167,7 @@ export default async function TransparencyPage({ searchParams }) {
             <tbody>
               {transactions?.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.</td>
                 </tr>
               ) : (
                 transactions?.map((tx, idx) => (
