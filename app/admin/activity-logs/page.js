@@ -9,28 +9,40 @@ import { Search, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
-// Convert UTC to Philippine Time (UTC+8)
 function formatPHTime(utcDateString) {
   const date = new Date(utcDateString);
   const phTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
   return phTime.toLocaleString('en-PH', { hour12: true });
 }
 
-// Generate a detailed, GitHub‑style change description including the amount from JSON
 function getDetailedDescription(log) {
+  // Parse JSON fields if they are strings
+  let newData = log.new_data;
+  let oldData = log.old_data;
+  if (typeof newData === 'string') {
+    try { newData = JSON.parse(newData); } catch(e) { newData = null; }
+  }
+  if (typeof oldData === 'string') {
+    try { oldData = JSON.parse(oldData); } catch(e) { oldData = null; }
+  }
+
   if (log.entity_type === 'budget_transaction') {
-    if (log.action === 'INSERT' && log.new_data) {
-      const { description, category, date, amount } = log.new_data;
-      const amountStr = amount ? `₱${amount.toLocaleString()}` : 'an amount';
-      return `Added ${category || 'transaction'}: ${amountStr} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+    if (log.action === 'INSERT' && newData) {
+      const amount = newData.amount ? `₱${newData.amount.toLocaleString()}` : 'an amount';
+      const desc = newData.description || 'no description';
+      const cat = newData.category || 'transaction';
+      const date = newData.date ? new Date(newData.date).toLocaleDateString() : 'unknown date';
+      return `Added ${cat}: ${amount} for “${desc}” on ${date}`;
     }
-    if (log.action === 'DELETE' && log.old_data) {
-      const { description, category, date, amount } = log.old_data;
-      const amountStr = amount ? `₱${amount.toLocaleString()}` : 'an amount';
-      return `Deleted ${category || 'transaction'}: ${amountStr} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+    if (log.action === 'DELETE' && oldData) {
+      const amount = oldData.amount ? `₱${oldData.amount.toLocaleString()}` : 'an amount';
+      const desc = oldData.description || 'no description';
+      const cat = oldData.category || 'transaction';
+      const date = oldData.date ? new Date(oldData.date).toLocaleDateString() : 'unknown date';
+      return `Deleted ${cat}: ${amount} for “${desc}” on ${date}`;
     }
   }
-  // Fallback for other entities
+  // Fallback for other entity types
   if (log.action === 'INSERT') return `Created new ${log.entity_type}`;
   if (log.action === 'DELETE') return `Removed ${log.entity_type}`;
   return `${log.action} ${log.entity_type}`;
