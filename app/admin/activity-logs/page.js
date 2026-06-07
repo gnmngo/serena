@@ -15,42 +15,42 @@ function formatPHTime(utcDateString) {
   return phTime.toLocaleString('en-PH', { hour12: true });
 }
 
-function parseJsonField(field) {
-  if (!field) return null;
-  if (typeof field === 'object') return field;
-  try {
-    return JSON.parse(field);
-  } catch (e) {
-    console.error('Failed to parse JSON:', field, e);
-    return null;
-  }
-}
-
-function getDetailedDescription(log) {
-  const newData = parseJsonField(log.new_data);
-  const oldData = parseJsonField(log.old_data);
-
-  // Handle budget transactions
+function getHumanDescription(log) {
+  // For budget transactions, use the dedicated amount column and JSON details
   if (log.entity_type === 'budget_transaction') {
-    if (log.action === 'INSERT' && newData) {
-      const amount = newData.amount ? `₱${Number(newData.amount).toLocaleString()}` : 'an amount';
-      const desc = newData.description || 'no description';
-      const cat = newData.category || 'transaction';
-      const date = newData.date ? new Date(newData.date).toLocaleDateString() : 'unknown date';
-      return `Added ${cat}: ${amount} for "${desc}" on ${date}`;
+    const amount = log.amount ? `₱${Number(log.amount).toLocaleString()}` : 'an amount';
+    if (log.action === 'INSERT') {
+      let desc = 'no description';
+      let cat = 'transaction';
+      let date = 'unknown date';
+      try {
+        const newData = typeof log.new_data === 'string' ? JSON.parse(log.new_data) : log.new_data;
+        if (newData) {
+          desc = newData.description || desc;
+          cat = newData.category || cat;
+          if (newData.date) date = new Date(newData.date).toLocaleDateString();
+        }
+      } catch (e) {}
+      return `Added ${cat}: ${amount} for “${desc}” on ${date}`;
     }
-    if (log.action === 'DELETE' && oldData) {
-      const amount = oldData.amount ? `₱${Number(oldData.amount).toLocaleString()}` : 'an amount';
-      const desc = oldData.description || 'no description';
-      const cat = oldData.category || 'transaction';
-      const date = oldData.date ? new Date(oldData.date).toLocaleDateString() : 'unknown date';
-      return `Deleted ${cat}: ${amount} for "${desc}" on ${date}`;
+    if (log.action === 'DELETE') {
+      let desc = 'no description';
+      let cat = 'transaction';
+      let date = 'unknown date';
+      try {
+        const oldData = typeof log.old_data === 'string' ? JSON.parse(log.old_data) : log.old_data;
+        if (oldData) {
+          desc = oldData.description || desc;
+          cat = oldData.category || cat;
+          if (oldData.date) date = new Date(oldData.date).toLocaleDateString();
+        }
+      } catch (e) {}
+      return `Removed ${cat}: ${amount} for “${desc}” on ${date}`;
     }
   }
-
-  // Fallback for other actions
-  if (log.action === 'INSERT') return `Created new ${log.entity_type}`;
-  if (log.action === 'DELETE') return `Removed ${log.entity_type}`;
+  // Fallback for other actions (announcements, events, etc.)
+  if (log.action === 'INSERT') return `Created a new ${log.entity_type.replace('_', ' ')}`;
+  if (log.action === 'DELETE') return `Deleted a ${log.entity_type.replace('_', ' ')}`;
   return `${log.action} ${log.entity_type}`;
 }
 
@@ -90,10 +90,8 @@ export default function ActivityLogsPage() {
     if (filter.endDate) query = query.lte('created_at', `${filter.endDate} 23:59:59`);
 
     const { data, error, count } = await query;
-    if (error) {
-      toast.error('Error fetching logs');
-      console.error(error);
-    } else {
+    if (error) toast.error('Error fetching logs');
+    else {
       setLogs(data || []);
       setTotalCount(count || 0);
     }
@@ -102,12 +100,13 @@ export default function ActivityLogsPage() {
 
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(logs.map(log => ({
-      'Timestamp (PH)': formatPHTime(log.created_at),
-      User: log.user_email,
-      Role: log.user_role,
-      Action: log.action,
-      Entity: log.entity_type,
-      'What changed': getDetailedDescription(log),
+      'Date and Time (PH)': formatPHTime(log.created_at),
+      'User': log.user_email,
+      'Role': log.user_role,
+      'Action': log.action === 'INSERT' ? 'Created' : (log.action === 'DELETE' ? 'Deleted' : log.action),
+      'Entity': log.entity_type === 'budget_transaction' ? 'Budget Transaction' : log.entity_type,
+      'Amount (₱)': log.amount ? log.amount.toLocaleString() : '',
+      'Description': getHumanDescription(log),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -135,9 +134,9 @@ export default function ActivityLogsPage() {
               <SelectTrigger><SelectValue placeholder="Action" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="INSERT">Create</SelectItem>
-                <SelectItem value="UPDATE">Update</SelectItem>
-                <SelectItem value="DELETE">Delete</SelectItem>
+                <SelectItem value="INSERT">Created</SelectItem>
+                <SelectItem value="DELETE">Deleted</SelectItem>
+                <SelectItem value="UPDATE">Updated</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filter.userRole} onValueChange={(val) => setFilter({...filter, userRole: val})}>
@@ -165,12 +164,13 @@ export default function ActivityLogsPage() {
             <table className="w-full bg-white rounded-xl shadow">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp (PH)</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Date and Time (PH)</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">User</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">What changed</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold">Amount (₱)</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,9 +179,10 @@ export default function ActivityLogsPage() {
                     <td className="px-4 py-2 text-sm whitespace-nowrap">{formatPHTime(log.created_at)}</td>
                     <td className="px-4 py-2 text-sm">{log.user_email}</td>
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
-                    <td className="px-4 py-2 text-sm">{log.action}</td>
-                    <td className="px-4 py-2 text-sm">{log.entity_type}</td>
-                    <td className="px-4 py-2 text-sm">{getDetailedDescription(log)}</td>
+                    <td className="px-4 py-2 text-sm">{log.action === 'INSERT' ? 'Created' : (log.action === 'DELETE' ? 'Deleted' : log.action)}</td>
+                    <td className="px-4 py-2 text-sm">{log.entity_type === 'budget_transaction' ? 'Budget Transaction' : log.entity_type}</td>
+                    <td className="px-4 py-2 text-sm text-right font-mono">{log.amount ? `₱${log.amount.toLocaleString()}` : '-'}</td>
+                    <td className="px-4 py-2 text-sm">{getHumanDescription(log)}</td>
                   </tr>
                 ))}
               </tbody>
