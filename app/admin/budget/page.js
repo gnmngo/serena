@@ -63,6 +63,7 @@ export default function BudgetTransactions() {
             amount: amountNum,
             description: form.description,
             category: form.category,
+            date: form.transaction_date,
           },
         });
       }
@@ -77,7 +78,7 @@ export default function BudgetTransactions() {
   }
 
   async function deleteTransaction(id) {
-    // Fetch the transaction data before deleting for logging
+    // Fetch transaction before deletion for logging
     const { data: toDelete } = await supabase
       .from('budget_transactions')
       .select('*')
@@ -97,7 +98,12 @@ export default function BudgetTransactions() {
         action: 'DELETE',
         entityType: 'budget_transaction',
         entityId: id,
-        oldData: toDelete,
+        oldData: {
+          amount: toDelete.amount,
+          description: toDelete.description,
+          category: toDelete.category,
+          date: toDelete.transaction_date,
+        },
       });
       fetchTransactions();
     }

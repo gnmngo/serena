@@ -60,7 +60,7 @@ export default function ActivityLogsPage() {
       Role: log.user_role,
       Action: log.action,
       Entity: log.entity_type,
-      EntityId: log.entity_id,
+      Details: log.new_data ? JSON.stringify(log.new_data) : (log.old_data ? JSON.stringify(log.old_data) : ''),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -118,23 +118,39 @@ export default function ActivityLogsPage() {
             <table className="w-full bg-white rounded-xl shadow">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp (Local)</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">User</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Entity ID</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-sm">{new Date(log.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-2 text-sm whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
                     <td className="px-4 py-2 text-sm">{log.user_email}</td>
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
                     <td className="px-4 py-2 text-sm">{log.action}</td>
                     <td className="px-4 py-2 text-sm">{log.entity_type}</td>
-                    <td className="px-4 py-2 text-sm font-mono">{log.entity_id?.slice(0, 8)}...</td>
+                    <td className="px-4 py-2 text-sm">
+                      {log.new_data ? (
+                        <div className="text-xs font-mono">
+                          {Object.entries(log.new_data).map(([k, v]) => (
+                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
+                          ))}
+                        </div>
+                      ) : log.old_data ? (
+                        <div className="text-xs font-mono text-red-600">
+                          {Object.entries(log.old_data).map(([k, v]) => (
+                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
+                          ))}
+                        </div>
+                      ) : '-'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
