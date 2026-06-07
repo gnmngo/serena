@@ -1,7 +1,7 @@
 'use server';
 import { createClient } from '@/utils/supabase/server';
 
-export async function logActivityAction({ action, entityType, entityId, oldData, newData }) {
+export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount = null }) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -22,6 +22,7 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       entity_id: entityId,
       old_data: oldData,
       new_data: newData,
+      amount,
     });
   } catch (err) {
     console.error('Failed to log activity:', err);

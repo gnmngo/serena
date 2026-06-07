@@ -65,6 +65,7 @@ export default function BudgetTransactions() {
             category: form.category,
             date: form.transaction_date,
           },
+          amount: amountNum,
         });
       }
       setForm({
@@ -78,7 +79,6 @@ export default function BudgetTransactions() {
   }
 
   async function deleteTransaction(id) {
-    // Fetch transaction before deletion for logging
     const { data: toDelete } = await supabase
       .from('budget_transactions')
       .select('*')
@@ -104,6 +104,7 @@ export default function BudgetTransactions() {
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
+        amount: toDelete.amount,
       });
       fetchTransactions();
     }
