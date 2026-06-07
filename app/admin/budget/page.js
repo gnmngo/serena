@@ -157,27 +157,21 @@ export default function BudgetTransactions() {
             </tr>
           </thead>
           <tbody>
-            {transactions.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="text-center py-8 text-gray-500">No transactions found.使用
+            {transactions.map((tx, idx) => (
+              <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}>
+                <td className="p-2">{new Date(tx.transaction_date).toLocaleDateString()}</td>
+                <td className="p-2">{tx.description}</td>
+                <td className={`p-2 text-right font-mono ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ₱{Math.abs(tx.amount).toLocaleString()}
+                </td>
+                <td className="p-2 capitalize">{tx.category}</td>
+                <td className="p-2 text-center">
+                  <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700">
+                    <Trash2 size={16} />
+                  </button>
+                </td>
               </tr>
-            ) : (
-              transactions.map((tx, idx) => (
-                <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}>
-                  <td className="p-2">{new Date(tx.transaction_date).toLocaleDateString()}</td>
-                  <td className="p-2">{tx.description}</td>
-                  <td className={`p-2 text-right font-mono ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    ₱{Math.abs(tx.amount).toLocaleString()}
-                  </td>
-                  <td className="p-2 capitalize">{tx.category}</td>
-                  <td className="p-2 text-center">
-                    <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </table>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
       </div>
