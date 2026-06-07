@@ -60,7 +60,6 @@ export default function BudgetTransactions() {
           entityType: 'budget_transaction',
           entityId: inserted[0].id,
           newData: {
-            amount: amountNum,
             description: form.description,
             category: form.category,
             date: form.transaction_date,
@@ -99,7 +98,6 @@ export default function BudgetTransactions() {
         entityType: 'budget_transaction',
         entityId: id,
         oldData: {
-          amount: toDelete.amount,
           description: toDelete.description,
           category: toDelete.category,
           date: toDelete.transaction_date,

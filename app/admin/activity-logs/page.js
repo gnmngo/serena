@@ -9,10 +9,24 @@ import { Search, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
-// Helper to format Philippine Time (UTC+8) reliably
-function formatPhilippineTime(utcDateString) {
+// Convert UTC to Philippine Time (UTC+8)
+function formatPHTime(utcDateString) {
   const date = new Date(utcDateString);
-  return date.toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+  const phTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  return phTime.toLocaleString('en-PH', { hour12: true });
+}
+
+// Human‑readable description WITHOUT amount (amount is in dedicated column)
+function getChangeDescription(log) {
+  if (log.action === 'INSERT' && log.new_data) {
+    const { description, category, date } = log.new_data;
+    return `${category} transaction: “${description}” on ${date || 'unknown date'}`;
+  }
+  if (log.action === 'DELETE' && log.old_data) {
+    const { description, category, date } = log.old_data;
+    return `${category} transaction: “${description}” on ${date || 'unknown date'}`;
+  }
+  return `${log.action} ${log.entity_type}`;
 }
 
 export default function ActivityLogsPage() {
@@ -61,13 +75,13 @@ export default function ActivityLogsPage() {
 
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(logs.map(log => ({
-      'Timestamp (PH)': formatPhilippineTime(log.created_at),
+      'Timestamp (PH)': formatPHTime(log.created_at),
       User: log.user_email,
       Role: log.user_role,
       Action: log.action,
       Entity: log.entity_type,
-      Amount: log.amount ? `₱${log.amount.toLocaleString()}` : '',
-      Details: log.new_data ? JSON.stringify(log.new_data) : (log.old_data ? JSON.stringify(log.old_data) : ''),
+      'Amount (₱)': log.amount ? log.amount.toLocaleString() : '',
+      'What changed': getChangeDescription(log),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -131,13 +145,13 @@ export default function ActivityLogsPage() {
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold">Amount (₱)</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Details</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">What changed</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-sm whitespace-nowrap">{formatPhilippineTime(log.created_at)}</td>
+                    <td className="px-4 py-2 text-sm whitespace-nowrap">{formatPHTime(log.created_at)}</td>
                     <td className="px-4 py-2 text-sm">{log.user_email}</td>
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
                     <td className="px-4 py-2 text-sm">{log.action}</td>
@@ -145,21 +159,7 @@ export default function ActivityLogsPage() {
                     <td className="px-4 py-2 text-sm text-right font-mono">
                       {log.amount ? `₱${log.amount.toLocaleString()}` : '-'}
                     </td>
-                    <td className="px-4 py-2 text-sm">
-                      {log.new_data ? (
-                        <div className="text-xs">
-                          {Object.entries(log.new_data).map(([k, v]) => (
-                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
-                          ))}
-                        </div>
-                      ) : log.old_data ? (
-                        <div className="text-xs text-red-600">
-                          {Object.entries(log.old_data).map(([k, v]) => (
-                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
-                          ))}
-                        </div>
-                      ) : '-'}
-                    </td>
+                    <td className="px-4 py-2 text-sm">{getChangeDescription(log)}</td>
                   </tr>
                 ))}
               </tbody>
