@@ -11,11 +11,20 @@ export async function logActivityAction({
   newData = null,
   severity = 'MEDIUM'
 }) {
-  console.log('[logActivityAction] called with:', { action, entityType, entityName, amount, severity });
+  console.log('=== logActivityAction called ===');
+  console.log('action:', action);
+  console.log('entityType:', entityType);
+  console.log('entityName:', entityName);
+  console.log('amount:', amount);
+  console.log('severity:', severity);
+
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      console.log('No user found');
+      return;
+    }
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -26,38 +35,22 @@ export async function logActivityAction({
     const userName = profile?.full_name || user.email.split('@')[0];
     const userRole = profile?.role || 'unknown';
 
+    // Build human-readable description
     let humanDescription = '';
-    let referenceNumber = null;
-
     if (entityType === 'budget_transaction') {
       const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
-      const description = newData?.description || oldData?.description || '';
-      const category = newData?.category || oldData?.category || 'transaction';
+      const desc = newData?.description || oldData?.description || '';
+      const cat = (newData?.category || oldData?.category || 'transaction').toUpperCase();
       if (action === 'create') {
-        humanDescription = `${userName} recorded a ${category.toUpperCase()} transaction of ${amountStr} for “${description}”.`;
-        referenceNumber = `BT-${Date.now()}`;
+        humanDescription = `${userName} recorded a ${cat} transaction of ${amountStr} for “${desc}”.`;
       } else if (action === 'delete') {
-        humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${description}”.`;
+        humanDescription = `${userName} deleted a ${cat} transaction of ${amountStr} for “${desc}”.`;
       }
-    } else if (entityType === 'announcement') {
-      const title = newData?.title || oldData?.title || '';
-      if (action === 'create') humanDescription = `${userName} posted announcement “${title}”.`;
-      else if (action === 'delete') humanDescription = `${userName} removed announcement “${title}”.`;
-    } else if (entityType === 'suggestion') {
-      const title = newData?.title || oldData?.title || '';
-      if (action === 'create') humanDescription = `${userName} submitted a suggestion “${title}”.`;
-      else if (action === 'update') humanDescription = `${userName} updated suggestion “${title}”.`;
-    } else if (entityType === 'transparency_post') {
-      const title = newData?.title || oldData?.title || '';
-      if (action === 'create') humanDescription = `${userName} uploaded a transparency report: “${title}”.`;
-      else if (action === 'delete') humanDescription = `${userName} removed document “${title}”.`;
-    } else if (entityType === 'event') {
-      const title = newData?.title || oldData?.title || '';
-      if (action === 'create') humanDescription = `${userName} created event “${title}”.`;
-      else if (action === 'delete') humanDescription = `${userName} deleted event “${title}”.`;
+    } else {
+      humanDescription = `${action} ${entityType}`;
     }
 
-    const { error } = await supabase.from('activity_logs').insert({
+    const insertData = {
       user_id: user.id,
       user_email: user.email,
       user_role: userRole,
@@ -69,11 +62,18 @@ export async function logActivityAction({
       old_data: oldData,
       new_data: newData,
       severity,
-      reference_number: referenceNumber,
       human_description: humanDescription,
-    });
-    if (error) console.error('Insert error:', error);
+    };
+
+    console.log('Inserting:', insertData);
+
+    const { error } = await supabase.from('activity_logs').insert(insertData);
+    if (error) {
+      console.error('Insert error:', error);
+    } else {
+      console.log('Insert successful');
+    }
   } catch (err) {
-    console.error('Failed to log activity:', err);
+    console.error('Exception:', err);
   }
 }
