@@ -64,7 +64,7 @@ export default function BudgetTransactions() {
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,   // ← numeric amount for audit trail
+          amount: amountNum,   // <-- numeric amount for audit trail
         });
       }
       setForm({
