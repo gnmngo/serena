@@ -2,9 +2,9 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({
-  action,           // 'create', 'update', 'delete', 'upload', 'register', 'evaluate', etc.
-  entityType,       // 'budget_transaction', 'announcement', 'suggestion', 'event', 'transparency_post'
-  entityName,       // Human‑readable name of the affected item (e.g. 'CEC Week 2026 Venue Rental')
+  action,
+  entityType,
+  entityName,
   entityId,
   amount = null,
   oldData = null,
@@ -25,7 +25,6 @@ export async function logActivityAction({
     const userName = profile?.full_name || user.email.split('@')[0];
     const userRole = profile?.role || 'unknown';
 
-    // Generate a human-readable description based on action and entity type
     let humanDescription = '';
     let referenceNumber = null;
 
@@ -76,7 +75,6 @@ export async function logActivityAction({
       }
     }
 
-    // Store the log
     await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
