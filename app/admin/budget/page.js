@@ -5,7 +5,7 @@ import { Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { logActivity } from '@/lib/auditLogger';
+import { logActivityAction } from '@/app/actions/logActivity';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -54,9 +54,8 @@ export default function BudgetTransactions() {
       toast.error('Error adding transaction');
     } else {
       toast.success('Transaction added');
-      // Log the activity
       if (inserted && inserted.length > 0) {
-        await logActivity({
+        await logActivityAction({
           action: 'INSERT',
           entityType: 'budget_transaction',
           entityId: inserted[0].id,
@@ -94,8 +93,7 @@ export default function BudgetTransactions() {
       toast.error('Error deleting');
     } else {
       toast.success('Transaction deleted');
-      // Log the activity
-      await logActivity({
+      await logActivityAction({
         action: 'DELETE',
         entityType: 'budget_transaction',
         entityId: id,
