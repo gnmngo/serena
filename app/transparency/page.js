@@ -147,7 +147,7 @@ export default async function TransparencyPage({ searchParams }) {
             <tbody>
               {transactions?.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.</td>
                 </tr>
               ) : (
                 transactions?.map((tx, idx) => (
