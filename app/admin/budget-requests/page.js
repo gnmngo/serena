@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const statusColors = {
   submitted: 'bg-yellow-100 text-yellow-800',
@@ -18,25 +18,32 @@ const statusColors = {
 
 export default function AdminBudgetRequests() {
   const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [filter]);
 
   async function fetchRequests() {
-    let query = supabase.from('budget_requests').select('*').order('created_at', { ascending: false });
-    if (filter) {
-      query = query.or(`title.ilike.%${filter}%,requester_name.ilike.%${filter}%`);
+    try {
+      let query = supabase.from('budget_requests').select('*').order('created_at', { ascending: false });
+      if (filter) {
+        query = query.or(`title.ilike.%${filter}%,requester_name.ilike.%${filter}%`);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load requests');
+    } finally {
+      setLoading(false);
     }
-    const { data } = await query;
-    setRequests(data || []);
   }
 
-  useEffect(() => {
-    fetchRequests();
-  }, [filter]);
+  if (loading) return <div className="p-8 text-center">Loading budget requests...</div>;
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -54,9 +61,13 @@ export default function AdminBudgetRequests() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{req.title}</CardTitle>
-                  <Badge className={statusColors[req.status]}>{req.status.replace('_', ' ')}</Badge>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[req.status] || 'bg-gray-100'}`}>
+                    {req.status?.replace('_', ' ')}
+                  </span>
                 </div>
-                <CardDescription>Requested by: {req.requester_name} | Amount: ₱{req.amount.toLocaleString()}</CardDescription>
+                <div className="text-sm text-muted-foreground">
+                  Requested by: {req.requester_name || req.requester_email || 'Unknown'} | Amount: ₱{req.amount?.toLocaleString()}
+                </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600 line-clamp-2">{req.description}</p>
@@ -65,6 +76,9 @@ export default function AdminBudgetRequests() {
             </Card>
           </Link>
         ))}
+        {requests.length === 0 && (
+          <div className="text-center py-8 text-gray-500">No budget requests found.</div>
+        )}
       </div>
     </div>
   );

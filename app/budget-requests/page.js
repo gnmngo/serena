@@ -4,9 +4,9 @@ import { createClient } from '@/utils/supabase/client';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Plus, Eye } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
+import toast from 'react-hot-toast';
 
 const statusColors = {
   draft: 'bg-gray-200 text-gray-800',
@@ -21,6 +21,7 @@ const statusColors = {
 export default function MyBudgetRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -28,19 +29,31 @@ export default function MyBudgetRequests() {
   }, []);
 
   async function fetchRequests() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data, error } = await supabase
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('Please log in to view your budget requests.');
+        setLoading(false);
+        return;
+      }
+      const { data, error: fetchError } = await supabase
         .from('budget_requests')
         .select('*')
         .eq('submitted_by', user.id)
         .order('created_at', { ascending: false });
-      if (!error) setRequests(data || []);
+      if (fetchError) throw fetchError;
+      setRequests(data || []);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+      toast.error('Failed to load budget requests');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return <div className="p-8 text-center">Loading your requests...</div>;
+  if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
 
   return (
     <div className="space-y-6 animate-fadeInUp">
@@ -65,9 +78,11 @@ export default function MyBudgetRequests() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle>{req.title}</CardTitle>
-                  <Badge className={statusColors[req.status] || 'bg-gray-100'}>{req.status.replace('_', ' ')}</Badge>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[req.status] || 'bg-gray-100'}`}>
+                    {req.status?.replace('_', ' ')}
+                  </span>
                 </div>
-                <CardDescription>Requested amount: ₱{req.amount.toLocaleString()}</CardDescription>
+                <CardDescription>Amount: ₱{req.amount?.toLocaleString()}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600 line-clamp-2">{req.description}</p>
