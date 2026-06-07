@@ -2,14 +2,16 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount }) {
-  // Ensure amount is a number or null
+  console.log(`[logActivity] Received amount: ${amount} (type: ${typeof amount})`);
+
+  // Convert to number or null
   let numericAmount = null;
   if (amount !== undefined && amount !== null) {
     const parsed = parseFloat(amount);
     if (!isNaN(parsed)) numericAmount = parsed;
   }
 
-  console.log(`Logging: action=${action}, amount=${numericAmount}`);
+  console.log(`[logActivity] Numeric amount to insert: ${numericAmount}`);
 
   try {
     const supabase = await createClient();
@@ -34,8 +36,8 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       amount: numericAmount,
     });
 
-    if (error) console.error('Insert error:', error);
+    if (error) console.error('[logActivity] Insert error:', error);
   } catch (err) {
-    console.error('Exception:', err);
+    console.error('[logActivity] Exception:', err);
   }
 }
