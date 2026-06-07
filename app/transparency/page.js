@@ -1,9 +1,10 @@
+import React from 'react';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { getUserRole } from '@/utils/getUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ExportButton from '@/components/ExportButton';
-import TransactionFilters from '@/components/TransactionFilters'; // direct import (client component)
+import TransactionFilters from '@/components/TransactionFilters';
 import BudgetChart from '@/components/analytics/BudgetChart';
 import ExpenseTrendChart from '@/components/analytics/ExpenseTrendChart';
 import { revalidatePath } from 'next/cache';
@@ -55,7 +56,6 @@ export default async function TransparencyPage({ searchParams }) {
   const balance = totalIncome - totalExpenses;
   const budgetUtilization = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
 
-  // Prepare chart data
   const expenseByCategory = transactions?.filter(t => t.amount < 0).reduce((acc, t) => {
     const cat = t.category || 'Uncategorized';
     acc[cat] = (acc[cat] || 0) + Math.abs(t.amount);
@@ -88,7 +88,6 @@ export default async function TransparencyPage({ searchParams }) {
         {isAdmin && <Link href="/transparency/new" className="btn-primary">+ Add Document</Link>}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Income</CardTitle></CardHeader>
@@ -113,7 +112,6 @@ export default async function TransparencyPage({ searchParams }) {
         </Card>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-5 rounded-xl shadow-sm border">
           <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
@@ -125,7 +123,6 @@ export default async function TransparencyPage({ searchParams }) {
         </div>
       </div>
 
-      {/* Filters and Transactions Table */}
       <div className="space-y-4">
         <div className="flex justify-between items-center flex-wrap gap-3">
           <h2 className="text-xl font-semibold">Budget Transactions</h2>
@@ -135,17 +132,7 @@ export default async function TransparencyPage({ searchParams }) {
           </div>
         </div>
 
-        <TransactionFilters
-          onFilterChange={(filters) => {
-            const url = new URL(window.location.href);
-            Object.entries(filters).forEach(([k, v]) => {
-              if (v && v !== 'all') url.searchParams.set(k, v);
-              else url.searchParams.delete(k);
-            });
-            window.location.href = url.toString();
-          }}
-          initialFilters={{ startDate, endDate, category, search: searchQuery }}
-        />
+        <TransactionFilters initialFilters={{ startDate, endDate, category, search: searchQuery }} />
 
         <div className="overflow-x-auto">
           <table className="w-full bg-white rounded-xl shadow">
@@ -160,7 +147,7 @@ export default async function TransparencyPage({ searchParams }) {
             <tbody>
               {transactions?.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.</td>
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
                 </tr>
               ) : (
                 transactions?.map((tx, idx) => (
@@ -179,7 +166,6 @@ export default async function TransparencyPage({ searchParams }) {
         </div>
       </div>
 
-      {/* Official Documents */}
       <section>
         <h2 className="text-lg font-semibold mb-3">📁 Official Documents</h2>
         {!posts?.length && <p className="text-gray-500">No documents posted yet.</p>}
