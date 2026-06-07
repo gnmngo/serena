@@ -9,6 +9,37 @@ import { Search, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
+// Helper to format Philippine time (UTC+8)
+function formatPHTime(utcDateString) {
+  const date = new Date(utcDateString);
+  return date.toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
+// Helper to generate a human‑readable description of the change
+function getChangeDescription(log) {
+  if (log.action === 'INSERT' && log.new_data) {
+    const { amount, description, category } = log.new_data;
+    return `Added ${category}: ₱${amount?.toLocaleString()} – “${description}”`;
+  }
+  if (log.action === 'DELETE' && log.old_data) {
+    const { amount, description, category } = log.old_data;
+    return `Deleted ${category}: ₱${amount?.toLocaleString()} – “${description}”`;
+  }
+  if (log.action === 'UPDATE' && log.old_data && log.new_data) {
+    return `Updated from ${JSON.stringify(log.old_data)} to ${JSON.stringify(log.new_data)}`;
+  }
+  return `${log.action} ${log.entity_type}`;
+}
+
 export default function ActivityLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,12 +86,12 @@ export default function ActivityLogsPage() {
 
   const exportToExcel = () => {
     const ws = XLSX.utils.json_to_sheet(logs.map(log => ({
-      Timestamp: new Date(log.created_at).toLocaleString(),
+      'Timestamp (PH Time)': formatPHTime(log.created_at),
       User: log.user_email,
       Role: log.user_role,
       Action: log.action,
       Entity: log.entity_type,
-      Details: log.new_data ? JSON.stringify(log.new_data) : (log.old_data ? JSON.stringify(log.old_data) : ''),
+      'What changed': getChangeDescription(log),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -118,39 +149,23 @@ export default function ActivityLogsPage() {
             <table className="w-full bg-white rounded-xl shadow">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp (Local)</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Timestamp (Philippine Time)</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">User</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Role</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Details</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">What changed</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-2 text-sm whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
-                    </td>
+                    <td className="px-4 py-2 text-sm whitespace-nowrap">{formatPHTime(log.created_at)}</td>
                     <td className="px-4 py-2 text-sm">{log.user_email}</td>
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
                     <td className="px-4 py-2 text-sm">{log.action}</td>
                     <td className="px-4 py-2 text-sm">{log.entity_type}</td>
-                    <td className="px-4 py-2 text-sm">
-                      {log.new_data ? (
-                        <div className="text-xs font-mono">
-                          {Object.entries(log.new_data).map(([k, v]) => (
-                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
-                          ))}
-                        </div>
-                      ) : log.old_data ? (
-                        <div className="text-xs font-mono text-red-600">
-                          {Object.entries(log.old_data).map(([k, v]) => (
-                            <div key={k}><strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : v}</div>
-                          ))}
-                        </div>
-                      ) : '-'}
-                    </td>
+                    <td className="px-4 py-2 text-sm">{getChangeDescription(log)}</td>
                   </tr>
                 ))}
               </tbody>
