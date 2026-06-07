@@ -88,6 +88,7 @@ export default async function TransparencyPage({ searchParams }) {
         {isAdmin && <Link href="/transparency/new" className="btn-primary">+ Add Document</Link>}
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Income</CardTitle></CardHeader>
@@ -112,6 +113,7 @@ export default async function TransparencyPage({ searchParams }) {
         </Card>
       </div>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-5 rounded-xl shadow-sm border">
           <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
@@ -123,6 +125,7 @@ export default async function TransparencyPage({ searchParams }) {
         </div>
       </div>
 
+      {/* Filters and Transactions Table */}
       <div className="space-y-4">
         <div className="flex justify-between items-center flex-wrap gap-3">
           <h2 className="text-xl font-semibold">Budget Transactions</h2>
@@ -157,7 +160,7 @@ export default async function TransparencyPage({ searchParams }) {
             <tbody>
               {transactions?.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.</td>
                 </tr>
               ) : (
                 transactions?.map((tx, idx) => (
@@ -168,7 +171,7 @@ export default async function TransparencyPage({ searchParams }) {
                       ₱{Math.abs(tx.amount).toLocaleString()}
                     </td>
                     <td className="px-6 py-3 capitalize">{tx.category}</td>
-                  </table>
+                  </tr>
                 ))
               )}
             </tbody>
@@ -176,6 +179,7 @@ export default async function TransparencyPage({ searchParams }) {
         </div>
       </div>
 
+      {/* Official Documents */}
       <section>
         <h2 className="text-lg font-semibold mb-3">📁 Official Documents</h2>
         {!posts?.length && <p className="text-gray-500">No documents posted yet.</p>}
