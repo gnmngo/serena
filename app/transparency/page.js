@@ -3,11 +3,17 @@ import Link from 'next/link';
 import { getUserRole } from '@/utils/getUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ExportButton from '@/components/ExportButton';
-import TransactionFilters from '@/components/TransactionFilters';
+import dynamic from 'next/dynamic';
 import BudgetChart from '@/components/analytics/BudgetChart';
 import ExpenseTrendChart from '@/components/analytics/ExpenseTrendChart';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+
+// Dynamically import the client component to avoid hydration issues
+const TransactionFilters = dynamic(
+  () => import('@/components/TransactionFilters'),
+  { ssr: false }
+);
 
 function getFileIcon(url) {
   if (!url) return '📄';
@@ -135,6 +141,7 @@ export default async function TransparencyPage({ searchParams }) {
           </div>
         </div>
 
+        {/* Client component for filters – dynamic import avoids SSR issues */}
         <TransactionFilters
           onFilterChange={(filters) => {
             const url = new URL(window.location.href);
@@ -160,7 +167,7 @@ export default async function TransparencyPage({ searchParams }) {
             <tbody>
               {transactions?.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.</td>
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
                 </tr>
               ) : (
                 transactions?.map((tx, idx) => (
