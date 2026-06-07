@@ -5,7 +5,7 @@ import { Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { logActivityAction } from '@/app/actions/logActivity';
+import { logActivityAction } from '@/actions/logActivity';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
