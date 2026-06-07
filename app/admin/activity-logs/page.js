@@ -15,16 +15,22 @@ function formatPHTime(utcDateString) {
   return phTime.toLocaleString('en-PH', { hour12: true });
 }
 
-function getDetailedDescription(log) {
-  let newData = log.new_data;
-  let oldData = log.old_data;
-  if (typeof newData === 'string') {
-    try { newData = JSON.parse(newData); } catch(e) { newData = null; }
+function parseJsonField(field) {
+  if (!field) return null;
+  if (typeof field === 'object') return field;
+  try {
+    return JSON.parse(field);
+  } catch (e) {
+    console.error('Failed to parse JSON:', field, e);
+    return null;
   }
-  if (typeof oldData === 'string') {
-    try { oldData = JSON.parse(oldData); } catch(e) { oldData = null; }
-  }
+}
 
+function getDetailedDescription(log) {
+  const newData = parseJsonField(log.new_data);
+  const oldData = parseJsonField(log.old_data);
+
+  // Handle budget transactions
   if (log.entity_type === 'budget_transaction') {
     if (log.action === 'INSERT' && newData) {
       const amount = newData.amount ? `₱${Number(newData.amount).toLocaleString()}` : 'an amount';
@@ -41,6 +47,8 @@ function getDetailedDescription(log) {
       return `Deleted ${cat}: ${amount} for "${desc}" on ${date}`;
     }
   }
+
+  // Fallback for other actions
   if (log.action === 'INSERT') return `Created new ${log.entity_type}`;
   if (log.action === 'DELETE') return `Removed ${log.entity_type}`;
   return `${log.action} ${log.entity_type}`;
@@ -82,8 +90,10 @@ export default function ActivityLogsPage() {
     if (filter.endDate) query = query.lte('created_at', `${filter.endDate} 23:59:59`);
 
     const { data, error, count } = await query;
-    if (error) toast.error('Error fetching logs');
-    else {
+    if (error) {
+      toast.error('Error fetching logs');
+      console.error(error);
+    } else {
       setLogs(data || []);
       setTotalCount(count || 0);
     }
