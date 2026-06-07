@@ -11,6 +11,7 @@ export async function logActivityAction({
   newData = null,
   severity = 'MEDIUM'
 }) {
+  console.log('[logActivityAction] called with:', { action, entityType, entityName, amount, severity });
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -40,42 +41,23 @@ export async function logActivityAction({
       }
     } else if (entityType === 'announcement') {
       const title = newData?.title || oldData?.title || '';
-      if (action === 'create') {
-        humanDescription = `${userName} posted announcement “${title}”.`;
-      } else if (action === 'delete') {
-        humanDescription = `${userName} removed announcement “${title}”.`;
-      } else if (action === 'update') {
-        humanDescription = `${userName} updated announcement “${title}”.`;
-      }
+      if (action === 'create') humanDescription = `${userName} posted announcement “${title}”.`;
+      else if (action === 'delete') humanDescription = `${userName} removed announcement “${title}”.`;
     } else if (entityType === 'suggestion') {
       const title = newData?.title || oldData?.title || '';
-      if (action === 'create') {
-        humanDescription = `${userName} submitted a suggestion “${title}”.`;
-      } else if (action === 'update') {
-        const status = newData?.status || '';
-        humanDescription = `${userName} ${status === 'accepted' ? 'accepted' : 'updated'} suggestion “${title}”.`;
-      } else if (action === 'delete') {
-        humanDescription = `${userName} deleted suggestion “${title}”.`;
-      }
+      if (action === 'create') humanDescription = `${userName} submitted a suggestion “${title}”.`;
+      else if (action === 'update') humanDescription = `${userName} updated suggestion “${title}”.`;
     } else if (entityType === 'transparency_post') {
       const title = newData?.title || oldData?.title || '';
-      if (action === 'create') {
-        humanDescription = `${userName} uploaded a transparency report: “${title}”.`;
-      } else if (action === 'delete') {
-        humanDescription = `${userName} removed document “${title}”.`;
-      }
+      if (action === 'create') humanDescription = `${userName} uploaded a transparency report: “${title}”.`;
+      else if (action === 'delete') humanDescription = `${userName} removed document “${title}”.`;
     } else if (entityType === 'event') {
       const title = newData?.title || oldData?.title || '';
-      if (action === 'create') {
-        humanDescription = `${userName} created event “${title}”.`;
-      } else if (action === 'delete') {
-        humanDescription = `${userName} deleted event “${title}”.`;
-      } else if (action === 'register') {
-        humanDescription = `${userName} registered for event “${title}”.`;
-      }
+      if (action === 'create') humanDescription = `${userName} created event “${title}”.`;
+      else if (action === 'delete') humanDescription = `${userName} deleted event “${title}”.`;
     }
 
-    await supabase.from('activity_logs').insert({
+    const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: userRole,
@@ -90,6 +72,7 @@ export async function logActivityAction({
       reference_number: referenceNumber,
       human_description: humanDescription,
     });
+    if (error) console.error('Insert error:', error);
   } catch (err) {
     console.error('Failed to log activity:', err);
   }
