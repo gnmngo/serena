@@ -56,16 +56,17 @@ export default function BudgetTransactions() {
       toast.success('Transaction added');
       if (inserted && inserted.length > 0) {
         await logActivityAction({
-          action: 'INSERT',
+          action: 'create',
           entityType: 'budget_transaction',
+          entityName: form.description,
           entityId: inserted[0].id,
+          amount: amountNum,
           newData: {
-            amount: amountNum,
             description: form.description,
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,
+          severity: 'HIGH',
         });
       }
       setForm({
@@ -95,16 +96,17 @@ export default function BudgetTransactions() {
     } else {
       toast.success('Transaction deleted');
       await logActivityAction({
-        action: 'DELETE',
+        action: 'delete',
         entityType: 'budget_transaction',
+        entityName: toDelete.description,
         entityId: id,
+        amount: toDelete.amount,
         oldData: {
-          amount: toDelete.amount,
           description: toDelete.description,
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
-        amount: toDelete.amount,
+        severity: 'CRITICAL',
       });
       fetchTransactions();
     }
@@ -172,15 +174,13 @@ export default function BudgetTransactions() {
                     <Trash2 size={16} />
                   </button>
                 </td>
-              </tr>
+              </td>
             ))}
-            {transactions.length === 0 && (
-              <tr>
-                <td colSpan="5" className="text-center py-8 text-gray-500">No transactions found.使用
-              </tr>
-            )}
           </tbody>
         </table>
+        {transactions.length === 0 && (
+          <div className="text-center py-8 text-gray-500">No transactions found.</div>
+        )}
       </div>
 
       <ConfirmDialog
