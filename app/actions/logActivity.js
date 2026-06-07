@@ -13,7 +13,6 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
-    // Convert amount to number if provided, else null
     const numericAmount = (amount !== null && !isNaN(amount)) ? parseFloat(amount) : null;
 
     await supabase.from('activity_logs').insert({
