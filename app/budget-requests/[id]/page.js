@@ -24,37 +24,56 @@ export default function BudgetRequestDetail({ params }) {
   const [request, setRequest] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
   const [comment, setComment] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    async function fetchData() {
+      try {
+        // Unwrap params if it's a Promise (Next.js 15+)
+        const resolvedParams = await params;
+        const id = resolvedParams.id;
+        if (!id) {
+          setErrorMsg('Invalid request ID');
+          setLoading(false);
+          return;
+        }
 
-  async function fetchData() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-      setRole(profile?.role);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setErrorMsg('Please log in to view this request');
+          setLoading(false);
+          return;
+        }
 
-      const { data, error } = await supabase
-        .from('budget_requests')
-        .select('*')
-        .eq('id', params.id)
-        .single();
-      if (error) throw error;
-      setRequest(data);
-      setNewStatus(data.status);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to load request');
-    } finally {
-      setLoading(false);
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        setRole(profile?.role);
+
+        const { data, error } = await supabase
+          .from('budget_requests')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          console.error('Supabase error:', error);
+          setErrorMsg(error.message);
+        } else {
+          setRequest(data);
+          setNewStatus(data.status);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    fetchData();
+  }, [params]);
 
   async function updateStatus(status, notes = '') {
     const updates = { status, updated_at: new Date() };
@@ -65,12 +84,20 @@ export default function BudgetRequestDetail({ params }) {
     const { error } = await supabase
       .from('budget_requests')
       .update(updates)
-      .eq('id', params.id);
+      .eq('id', request.id);
     if (error) {
       toast.error('Error updating status');
+      console.error(error);
     } else {
       toast.success(`Request ${status}`);
-      fetchData();
+      // Refresh data
+      const { data: refreshed } = await supabase
+        .from('budget_requests')
+        .select('*')
+        .eq('id', request.id)
+        .single();
+      setRequest(refreshed);
+      setNewStatus(refreshed.status);
     }
   }
 
@@ -81,6 +108,7 @@ export default function BudgetRequestDetail({ params }) {
   };
 
   if (loading) return <div className="p-8">Loading...</div>;
+  if (errorMsg) return <div className="p-8 text-red-500">Error: {errorMsg}</div>;
   if (!request) return <div className="p-8">Request not found</div>;
 
   const isAdmin = role === 'admin';
