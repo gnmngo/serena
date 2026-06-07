@@ -40,8 +40,6 @@ export default function BudgetTransactions() {
       return;
     }
 
-    console.log('[Budget Page] Amount to log (addTransaction):', amountNum);
-
     const { data: inserted, error } = await supabase
       .from('budget_transactions')
       .insert({
@@ -57,16 +55,17 @@ export default function BudgetTransactions() {
     } else {
       toast.success('Transaction added');
       if (inserted && inserted.length > 0) {
+        // Include amount in newData JSON
         await logActivityAction({
           action: 'INSERT',
           entityType: 'budget_transaction',
           entityId: inserted[0].id,
           newData: {
+            amount: amountNum,
             description: form.description,
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,
         });
       }
       setForm({
@@ -86,8 +85,6 @@ export default function BudgetTransactions() {
       .eq('id', id)
       .single();
 
-    console.log('[Budget Page] Amount to log (deleteTransaction):', toDelete.amount);
-
     const { error } = await supabase
       .from('budget_transactions')
       .delete()
@@ -97,16 +94,17 @@ export default function BudgetTransactions() {
       toast.error('Error deleting');
     } else {
       toast.success('Transaction deleted');
+      // Include amount in oldData JSON
       await logActivityAction({
         action: 'DELETE',
         entityType: 'budget_transaction',
         entityId: id,
         oldData: {
+          amount: toDelete.amount,
           description: toDelete.description,
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
-        amount: toDelete.amount,
       });
       fetchTransactions();
     }
