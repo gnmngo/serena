@@ -174,14 +174,14 @@ export default function BudgetTransactions() {
                     <Trash2 size={16} />
                   </button>
                 </td>
-              </td>
+              </tr>
             ))}
           </tbody>
         </table>
-        {transactions.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No transactions found.</div>
-        )}
       </div>
+      {transactions.length === 0 && (
+        <div className="text-center py-8 text-gray-500">No transactions found.</div>
+      )}
 
       <ConfirmDialog
         isOpen={deleteModal.open}
