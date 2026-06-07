@@ -16,15 +16,26 @@ function formatPHTime(utcDateString) {
   return phTime.toLocaleString('en-PH', { hour12: true });
 }
 
-// Human‑readable description WITHOUT amount (amount is in dedicated column)
-function getChangeDescription(log) {
-  if (log.action === 'INSERT' && log.new_data) {
-    const { description, category, date } = log.new_data;
-    return `${category} transaction: “${description}” on ${date || 'unknown date'}`;
+// Generate a detailed, GitHub‑style change description
+function getDetailedDescription(log) {
+  // For budget transactions, use the stored amount and JSON details
+  if (log.entity_type === 'budget_transaction') {
+    const amount = log.amount ? `₱${log.amount.toLocaleString()}` : 'an amount';
+    if (log.action === 'INSERT' && log.new_data) {
+      const { description, category, date } = log.new_data;
+      return `Added ${category || 'transaction'}: ${amount} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+    }
+    if (log.action === 'DELETE' && log.old_data) {
+      const { description, category, date } = log.old_data;
+      return `Deleted ${category || 'transaction'}: ${amount} for “${description || 'no description'}” on ${date || 'unknown date'}`;
+    }
   }
-  if (log.action === 'DELETE' && log.old_data) {
-    const { description, category, date } = log.old_data;
-    return `${category} transaction: “${description}” on ${date || 'unknown date'}`;
+  // Fallback for other entity types
+  if (log.action === 'INSERT') {
+    return `Created new ${log.entity_type}`;
+  }
+  if (log.action === 'DELETE') {
+    return `Removed ${log.entity_type}`;
   }
   return `${log.action} ${log.entity_type}`;
 }
@@ -81,7 +92,7 @@ export default function ActivityLogsPage() {
       Action: log.action,
       Entity: log.entity_type,
       'Amount (₱)': log.amount ? log.amount.toLocaleString() : '',
-      'What changed': getChangeDescription(log),
+      'Detailed change': getDetailedDescription(log),
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
@@ -145,7 +156,7 @@ export default function ActivityLogsPage() {
                   <th className="px-4 py-3 text-left text-sm font-semibold">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Entity</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold">Amount (₱)</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">What changed</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Detailed change</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,7 +170,7 @@ export default function ActivityLogsPage() {
                     <td className="px-4 py-2 text-sm text-right font-mono">
                       {log.amount ? `₱${log.amount.toLocaleString()}` : '-'}
                     </td>
-                    <td className="px-4 py-2 text-sm">{getChangeDescription(log)}</td>
+                    <td className="px-4 py-2 text-sm">{getDetailedDescription(log)}</td>
                   </tr>
                 ))}
               </tbody>
