@@ -9,13 +9,13 @@ import ExpenseTrendChart from '@/components/analytics/ExpenseTrendChart';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-// Helper to get file icon
 function getFileIcon(url) {
   if (!url) return '📄';
   const ext = url.split('.').pop().toLowerCase();
   if (ext === 'pdf') return '📑';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
   if (ext === 'doc' || ext === 'docx') return '📝';
+  if (ext === 'xls' || ext === 'xlsx') return '📊';
   return '📎';
 }
 
@@ -33,35 +33,29 @@ export default async function TransparencyPage({ searchParams }) {
   const role = await getUserRole();
   const isAdmin = role === 'admin';
 
-  // Parse filter params from URL (if any)
   const startDate = searchParams?.startDate || '';
   const endDate = searchParams?.endDate || '';
   const category = searchParams?.category || 'all';
   const searchQuery = searchParams?.search || '';
 
-  // Fetch transactions with filters (server-side)
   let query = supabase.from('budget_transactions').select('*').order('transaction_date', { ascending: false });
-
   if (startDate) query = query.gte('transaction_date', startDate);
   if (endDate) query = query.lte('transaction_date', endDate);
   if (category !== 'all') query = query.eq('category', category);
   if (searchQuery) query = query.ilike('description', `%${searchQuery}%`);
 
   const { data: transactions } = await query;
-
-  // Fetch transparency posts (documents)
   const { data: posts } = await supabase
     .from('transparency_posts')
     .select('*')
     .order('published_at', { ascending: false });
 
-  // Calculate financial summaries
   const totalIncome = transactions?.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0) || 0;
   const totalExpenses = transactions?.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0) || 0;
   const balance = totalIncome - totalExpenses;
   const budgetUtilization = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
 
-  // Prepare data for charts
+  // Prepare chart data
   const expenseByCategory = transactions?.filter(t => t.amount < 0).reduce((acc, t) => {
     const cat = t.category || 'Uncategorized';
     acc[cat] = (acc[cat] || 0) + Math.abs(t.amount);
@@ -73,7 +67,6 @@ export default async function TransparencyPage({ searchParams }) {
     color: name === 'expense' ? '#EF4444' : '#3B82F6',
   }));
 
-  // Monthly trend data
   const monthlyTrend = transactions?.reduce((acc, t) => {
     const date = new Date(t.transaction_date);
     const monthYear = `${date.getFullYear()}-${date.getMonth() + 1}`;
@@ -86,17 +79,15 @@ export default async function TransparencyPage({ searchParams }) {
     month: item.month,
     expenses: item.expenses,
     income: item.income,
-  })).slice(-6); // last 6 months
+  })).slice(-6);
 
   return (
     <div className="space-y-8 animate-fadeInUp">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Financial Transparency Center</h1>
         {isAdmin && <Link href="/transparency/new" className="btn-primary">+ Add Document</Link>}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Total Income</CardTitle></CardHeader>
@@ -121,19 +112,17 @@ export default async function TransparencyPage({ searchParams }) {
         </Card>
       </div>
 
-      {/* Visual Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-5 rounded-xl shadow-sm border">
           <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
-          <BudgetChart data={expenseChartData} title="" />
+          <BudgetChart data={expenseChartData} />
         </div>
         <div className="bg-white p-5 rounded-xl shadow-sm border">
           <h3 className="text-lg font-semibold mb-3">Income vs Expense Trend</h3>
-          <ExpenseTrendChart data={trendData} title="" />
+          <ExpenseTrendChart data={trendData} />
         </div>
       </div>
 
-      {/* Filters and Transactions Table */}
       <div className="space-y-4">
         <div className="flex justify-between items-center flex-wrap gap-3">
           <h2 className="text-xl font-semibold">Budget Transactions</h2>
@@ -143,7 +132,6 @@ export default async function TransparencyPage({ searchParams }) {
           </div>
         </div>
 
-        {/* Filter component (client-side, but we use URL params to keep server-side filtering) */}
         <TransactionFilters
           onFilterChange={(filters) => {
             const url = new URL(window.location.href);
@@ -156,7 +144,6 @@ export default async function TransparencyPage({ searchParams }) {
           initialFilters={{ startDate, endDate, category, search: searchQuery }}
         />
 
-        {/* Transactions Table */}
         <div className="overflow-x-auto">
           <table className="w-full bg-white rounded-xl shadow">
             <thead className="bg-gray-50 border-b">
@@ -169,7 +156,9 @@ export default async function TransparencyPage({ searchParams }) {
             </thead>
             <tbody>
               {transactions?.length === 0 ? (
-                <tr><td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.寿</tr>
+                <tr>
+                  <td colSpan="4" className="text-center py-8 text-gray-500">No transactions found.使用
+                </tr>
               ) : (
                 transactions?.map((tx, idx) => (
                   <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}>
@@ -179,7 +168,7 @@ export default async function TransparencyPage({ searchParams }) {
                       ₱{Math.abs(tx.amount).toLocaleString()}
                     </td>
                     <td className="px-6 py-3 capitalize">{tx.category}</td>
-                  </tr>
+                  </table>
                 ))
               )}
             </tbody>
@@ -187,7 +176,6 @@ export default async function TransparencyPage({ searchParams }) {
         </div>
       </div>
 
-      {/* Official Documents Section */}
       <section>
         <h2 className="text-lg font-semibold mb-3">📁 Official Documents</h2>
         {!posts?.length && <p className="text-gray-500">No documents posted yet.</p>}
