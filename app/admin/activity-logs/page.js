@@ -16,39 +16,30 @@ function formatPHTime(utcDateString) {
 }
 
 function getHumanDescription(log) {
-  // For budget transactions, use the dedicated amount column and JSON details
+  // Parse JSON fields (they may be strings or objects)
+  let newData = log.new_data;
+  let oldData = log.old_data;
+  try {
+    if (typeof newData === 'string') newData = JSON.parse(newData);
+    if (typeof oldData === 'string') oldData = JSON.parse(oldData);
+  } catch (e) {}
+
   if (log.entity_type === 'budget_transaction') {
-    const amount = log.amount ? `₱${Number(log.amount).toLocaleString()}` : 'an amount';
-    if (log.action === 'INSERT') {
-      let desc = 'no description';
-      let cat = 'transaction';
-      let date = 'unknown date';
-      try {
-        const newData = typeof log.new_data === 'string' ? JSON.parse(log.new_data) : log.new_data;
-        if (newData) {
-          desc = newData.description || desc;
-          cat = newData.category || cat;
-          if (newData.date) date = new Date(newData.date).toLocaleDateString();
-        }
-      } catch (e) {}
-      return `Added ${cat}: ${amount} for “${desc}” on ${date}`;
+    // Use the dedicated amount column
+    const amountValue = log.amount !== null && log.amount !== undefined ? `₱${Number(log.amount).toLocaleString()}` : 'an amount';
+    if (log.action === 'INSERT' && newData) {
+      const desc = newData.description || 'no description';
+      const cat = newData.category || 'transaction';
+      const date = newData.date ? new Date(newData.date).toLocaleDateString() : 'unknown date';
+      return `Added ${cat}: ${amountValue} for “${desc}” on ${date}`;
     }
-    if (log.action === 'DELETE') {
-      let desc = 'no description';
-      let cat = 'transaction';
-      let date = 'unknown date';
-      try {
-        const oldData = typeof log.old_data === 'string' ? JSON.parse(log.old_data) : log.old_data;
-        if (oldData) {
-          desc = oldData.description || desc;
-          cat = oldData.category || cat;
-          if (oldData.date) date = new Date(oldData.date).toLocaleDateString();
-        }
-      } catch (e) {}
-      return `Removed ${cat}: ${amount} for “${desc}” on ${date}`;
+    if (log.action === 'DELETE' && oldData) {
+      const desc = oldData.description || 'no description';
+      const cat = oldData.category || 'transaction';
+      const date = oldData.date ? new Date(oldData.date).toLocaleDateString() : 'unknown date';
+      return `Removed ${cat}: ${amountValue} for “${desc}” on ${date}`;
     }
   }
-  // Fallback for other actions (announcements, events, etc.)
   if (log.action === 'INSERT') return `Created a new ${log.entity_type.replace('_', ' ')}`;
   if (log.action === 'DELETE') return `Deleted a ${log.entity_type.replace('_', ' ')}`;
   return `${log.action} ${log.entity_type}`;
@@ -105,7 +96,7 @@ export default function ActivityLogsPage() {
       'Role': log.user_role,
       'Action': log.action === 'INSERT' ? 'Created' : (log.action === 'DELETE' ? 'Deleted' : log.action),
       'Entity': log.entity_type === 'budget_transaction' ? 'Budget Transaction' : log.entity_type,
-      'Amount (₱)': log.amount ? log.amount.toLocaleString() : '',
+      'Amount (₱)': log.amount !== null && log.amount !== undefined ? log.amount.toLocaleString() : '',
       'Description': getHumanDescription(log),
     })));
     const wb = XLSX.utils.book_new();
@@ -181,7 +172,9 @@ export default function ActivityLogsPage() {
                     <td className="px-4 py-2 text-sm capitalize">{log.user_role}</td>
                     <td className="px-4 py-2 text-sm">{log.action === 'INSERT' ? 'Created' : (log.action === 'DELETE' ? 'Deleted' : log.action)}</td>
                     <td className="px-4 py-2 text-sm">{log.entity_type === 'budget_transaction' ? 'Budget Transaction' : log.entity_type}</td>
-                    <td className="px-4 py-2 text-sm text-right font-mono">{log.amount ? `₱${log.amount.toLocaleString()}` : '-'}</td>
+                    <td className="px-4 py-2 text-sm text-right font-mono">
+                      {log.amount !== null && log.amount !== undefined ? `₱${log.amount.toLocaleString()}` : '-'}
+                    </td>
                     <td className="px-4 py-2 text-sm">{getHumanDescription(log)}</td>
                   </tr>
                 ))}
