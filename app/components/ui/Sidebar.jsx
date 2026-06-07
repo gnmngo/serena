@@ -4,9 +4,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { 
-  Home, FileText, Megaphone, Users, Star, Lightbulb, 
-  Edit3, Settings, DollarSign, LogOut, UserCircle, 
+import {
+  Home, FileText, Megaphone, Users, Star, Lightbulb,
+  Edit3, Settings, DollarSign, LogOut, UserCircle,
   Wallet, TrendingUp, Calendar, MessageSquare, PieChart, Activity
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
@@ -38,7 +38,6 @@ export default function Sidebar({ isOpen, onClose }) {
     getUser();
   }, []);
 
-  // Common navigation items for all authenticated users
   const commonNav = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Transparency', href: '/transparency', icon: FileText },
@@ -47,19 +46,16 @@ export default function Sidebar({ isOpen, onClose }) {
     { name: 'Events', href: '/events', icon: Calendar },
   ];
 
-  // Student-only items
   const studentNav = [
     { name: 'Suggest', href: '/suggest', icon: Lightbulb },
     { name: 'Budget Requests', href: '/budget-requests', icon: DollarSign },
   ];
 
-  // Faculty-only items
   const facultyNav = [
     { name: 'Suggest', href: '/suggest', icon: Lightbulb },
     { name: 'Post Announcement', href: '/announcements/new', icon: Edit3 },
   ];
 
-  // Admin-only items
   const adminNav = [
     { name: 'Admin Dashboard', href: '/admin/dashboard', icon: PieChart },
     { name: 'Manage Suggestions', href: '/admin/suggestions', icon: MessageSquare },
@@ -81,6 +77,7 @@ export default function Sidebar({ isOpen, onClose }) {
     transition-transform duration-300 ease-in-out
     ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     lg:translate-x-0
+    overflow-y-auto
   `;
 
   const handleLogout = async () => {
