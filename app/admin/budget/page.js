@@ -64,7 +64,7 @@ export default function BudgetTransactions() {
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,   // ← numeric amount
+          amount: amountNum,
         });
       }
       setForm({
@@ -102,7 +102,7 @@ export default function BudgetTransactions() {
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
-        amount: toDelete.amount,   // ← numeric amount
+        amount: toDelete.amount,
       });
       fetchTransactions();
     }
@@ -157,22 +157,41 @@ export default function BudgetTransactions() {
             </tr>
           </thead>
           <tbody>
-            {transactions.map((tx) => (
-              <tr key={tx.id} className="border-t">
-                <td className="p-2">{new Date(tx.transaction_date).toLocaleDateString()}</td>
-                <td className="p-2">{tx.description}</td>
-                <td className={`p-2 text-right font-mono ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>₱{Math.abs(tx.amount).toLocaleString()}</td>
-                <td className="p-2 capitalize">{tx.category}</td>
-                <td className="p-2 text-center">
-                  <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
-                </td>
-              </td>
-            ))}
+            {transactions.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center py-8 text-gray-500">No transactions found.使用
+              </tr>
+            ) : (
+              transactions.map((tx, idx) => (
+                <tr key={tx.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}>
+                  <td className="p-2">{new Date(tx.transaction_date).toLocaleDateString()}</td>
+                  <td className="p-2">{tx.description}</td>
+                  <td className={`p-2 text-right font-mono ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    ₱{Math.abs(tx.amount).toLocaleString()}
+                  </td>
+                  <td className="p-2 capitalize">{tx.category}</td>
+                  <td className="p-2 text-center">
+                    <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </table>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      <ConfirmDialog isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, id: null, name: '' })} onConfirm={() => deleteTransaction(deleteModal.id)} title="Delete Transaction" message={`Are you sure you want to delete "${deleteModal.name}"? This action cannot be undone.`} confirmText="Delete" cancelText="Cancel" variant="danger" />
+      <ConfirmDialog
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, id: null, name: '' })}
+        onConfirm={() => deleteTransaction(deleteModal.id)}
+        title="Delete Transaction"
+        message={`Are you sure you want to delete "${deleteModal.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
