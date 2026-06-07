@@ -2,29 +2,19 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({
-  action,
-  entityType,
-  entityName,
+  action,           // 'create', 'delete', 'update'
+  entityType,       // 'budget_transaction', 'announcement', etc.
+  entityName,       // human‑readable name (e.g., "CEC Week Venue")
   entityId,
   amount = null,
   oldData = null,
   newData = null,
   severity = 'MEDIUM'
 }) {
-  console.log('=== logActivityAction called ===');
-  console.log('action:', action);
-  console.log('entityType:', entityType);
-  console.log('entityName:', entityName);
-  console.log('amount:', amount);
-  console.log('severity:', severity);
-
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No user found');
-      return;
-    }
+    if (!user) return;
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -35,22 +25,25 @@ export async function logActivityAction({
     const userName = profile?.full_name || user.email.split('@')[0];
     const userRole = profile?.role || 'unknown';
 
-    // Build human-readable description
+    // Build a simple, guaranteed human-readable description
     let humanDescription = '';
     if (entityType === 'budget_transaction') {
       const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
-      const desc = newData?.description || oldData?.description || '';
-      const cat = (newData?.category || oldData?.category || 'transaction').toUpperCase();
+      const description = entityName || (newData?.description || oldData?.description || 'transaction');
+      const category = (newData?.category || oldData?.category || 'transaction').toUpperCase();
       if (action === 'create') {
-        humanDescription = `${userName} recorded a ${cat} transaction of ${amountStr} for “${desc}”.`;
+        humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${description}”.`;
       } else if (action === 'delete') {
-        humanDescription = `${userName} deleted a ${cat} transaction of ${amountStr} for “${desc}”.`;
+        humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${description}”.`;
+      } else {
+        humanDescription = `${userName} ${action}d a ${category} transaction.`;
       }
     } else {
-      humanDescription = `${action} ${entityType}`;
+      humanDescription = `${userName} ${action}d ${entityName || entityType}.`;
     }
 
-    const insertData = {
+    // Insert with explicit human_description
+    const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: userRole,
@@ -63,17 +56,10 @@ export async function logActivityAction({
       new_data: newData,
       severity,
       human_description: humanDescription,
-    };
+    });
 
-    console.log('Inserting:', insertData);
-
-    const { error } = await supabase.from('activity_logs').insert(insertData);
-    if (error) {
-      console.error('Insert error:', error);
-    } else {
-      console.log('Insert successful');
-    }
+    if (error) console.error('Audit log insert error:', error);
   } catch (err) {
-    console.error('Exception:', err);
+    console.error('Audit log exception:', err);
   }
 }
