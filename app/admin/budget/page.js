@@ -40,6 +40,8 @@ export default function BudgetTransactions() {
       return;
     }
 
+    console.log('[Budget Page] Amount to log (addTransaction):', amountNum);
+
     const { data: inserted, error } = await supabase
       .from('budget_transactions')
       .insert({
@@ -64,7 +66,7 @@ export default function BudgetTransactions() {
             category: form.category,
             date: form.transaction_date,
           },
-          amount: amountNum,   // <-- this must be passed
+          amount: amountNum,
         });
       }
       setForm({
@@ -84,6 +86,8 @@ export default function BudgetTransactions() {
       .eq('id', id)
       .single();
 
+    console.log('[Budget Page] Amount to log (deleteTransaction):', toDelete.amount);
+
     const { error } = await supabase
       .from('budget_transactions')
       .delete()
@@ -102,7 +106,7 @@ export default function BudgetTransactions() {
           category: toDelete.category,
           date: toDelete.transaction_date,
         },
-        amount: toDelete.amount,   // <-- this must be passed
+        amount: toDelete.amount,
       });
       fetchTransactions();
     }
