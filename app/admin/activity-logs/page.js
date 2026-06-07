@@ -16,7 +16,6 @@ function formatPHTime(utcDateString) {
 }
 
 function getDetailedDescription(log) {
-  // Parse JSON fields if they are strings
   let newData = log.new_data;
   let oldData = log.old_data;
   if (typeof newData === 'string') {
@@ -28,21 +27,20 @@ function getDetailedDescription(log) {
 
   if (log.entity_type === 'budget_transaction') {
     if (log.action === 'INSERT' && newData) {
-      const amount = newData.amount ? `₱${newData.amount.toLocaleString()}` : 'an amount';
+      const amount = newData.amount ? `₱${Number(newData.amount).toLocaleString()}` : 'an amount';
       const desc = newData.description || 'no description';
       const cat = newData.category || 'transaction';
       const date = newData.date ? new Date(newData.date).toLocaleDateString() : 'unknown date';
-      return `Added ${cat}: ${amount} for “${desc}” on ${date}`;
+      return `Added ${cat}: ${amount} for "${desc}" on ${date}`;
     }
     if (log.action === 'DELETE' && oldData) {
-      const amount = oldData.amount ? `₱${oldData.amount.toLocaleString()}` : 'an amount';
+      const amount = oldData.amount ? `₱${Number(oldData.amount).toLocaleString()}` : 'an amount';
       const desc = oldData.description || 'no description';
       const cat = oldData.category || 'transaction';
       const date = oldData.date ? new Date(oldData.date).toLocaleDateString() : 'unknown date';
-      return `Deleted ${cat}: ${amount} for “${desc}” on ${date}`;
+      return `Deleted ${cat}: ${amount} for "${desc}" on ${date}`;
     }
   }
-  // Fallback for other entity types
   if (log.action === 'INSERT') return `Created new ${log.entity_type}`;
   if (log.action === 'DELETE') return `Removed ${log.entity_type}`;
   return `${log.action} ${log.entity_type}`;
