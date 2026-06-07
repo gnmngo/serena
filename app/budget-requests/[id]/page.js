@@ -34,46 +34,51 @@ export default function BudgetRequestDetail({ params }) {
   }, []);
 
   async function fetchData() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    setRole(profile?.role);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      setRole(profile?.role);
 
-    const { data, error } = await supabase
-      .from('budget_requests')
-      .select('*')
-      .eq('id', params.id)
-      .single();
-    if (error) {
-      console.error(error);
-    } else {
+      const { data, error } = await supabase
+        .from('budget_requests')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+      if (error) throw error;
       setRequest(data);
       setNewStatus(data.status);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load request');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  async function updateStatus() {
-    if (newStatus === request.status) return;
+  async function updateStatus(status, notes = '') {
+    const updates = { status, updated_at: new Date() };
+    if (status === 'approved') updates.approved_at = new Date();
+    if (status === 'funded') updates.funded_at = new Date();
+    if (notes) updates.review_notes = notes;
+
     const { error } = await supabase
       .from('budget_requests')
-      .update({ status: newStatus, updated_at: new Date() })
+      .update(updates)
       .eq('id', params.id);
-    if (error) toast.error('Error updating status');
-    else {
-      toast.success(`Status updated to ${newStatus}`);
+    if (error) {
+      toast.error('Error updating status');
+    } else {
+      toast.success(`Request ${status}`);
       fetchData();
-      // Also add approval record
-      await supabase.from('budget_request_approvals').insert({
-        request_id: params.id,
-        approver_id: (await supabase.auth.getUser()).data.user?.id,
-        approver_role: role,
-        action: newStatus === 'approved' ? 'approve' : (newStatus === 'rejected' ? 'reject' : 'request_changes'),
-        comments: comment,
-      });
-      setComment('');
     }
   }
+
+  const handleStatusChange = async () => {
+    if (newStatus === request.status) return;
+    await updateStatus(newStatus, comment);
+    setComment('');
+  };
 
   if (loading) return <div className="p-8">Loading...</div>;
   if (!request) return <div className="p-8">Request not found</div>;
@@ -83,13 +88,13 @@ export default function BudgetRequestDetail({ params }) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fadeInUp">
-      <BackButton fallbackUrl="/budget-requests" />
+      <BackButton fallbackUrl={isAdmin ? '/admin/budget-requests' : '/budget-requests'} />
       <div className="flex justify-between items-start">
         <h1 className="text-2xl font-bold">{request.title}</h1>
         <Badge className={statusColors[request.status]}>{request.status.replace('_', ' ')}</Badge>
       </div>
       <Card>
-        <CardHeader><CardTitle>Request Information</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Request Details</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div><span className="font-medium">Amount:</span> ₱{request.amount.toLocaleString()}</div>
           <div><span className="font-medium">Category:</span> {request.category || 'N/A'}</div>
@@ -102,7 +107,7 @@ export default function BudgetRequestDetail({ params }) {
           {request.funded_at && <div>Funded on: {new Date(request.funded_at).toLocaleString()}</div>}
           {request.review_notes && <div><span className="font-medium">Review Notes:</span> {request.review_notes}</div>}
           {request.liquidation_document_url && (
-            <div><span className="font-medium">Liquidation Document:</span> <a href={request.liquidation_document_url} target="_blank" className="text-blue-500">Download</a></div>
+            <div><span className="font-medium">Liquidation Document:</span> <a href={request.liquidation_document_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Download</a></div>
           )}
         </CardContent>
       </Card>
@@ -128,21 +133,15 @@ export default function BudgetRequestDetail({ params }) {
               <label className="block text-sm font-medium mb-1">Internal Notes (optional)</label>
               <Textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add comments or reason for change..." />
             </div>
-            <Button onClick={updateStatus} disabled={newStatus === request.status}>Update Status</Button>
+            <Button onClick={handleStatusChange} disabled={newStatus === request.status}>Update Status</Button>
           </CardContent>
         </Card>
       )}
 
       {canApprove && (
         <div className="flex gap-3">
-          <Button onClick={async () => {
-            await supabase.from('budget_requests').update({ status: 'approved', approved_at: new Date() }).eq('id', params.id);
-            fetchData();
-          }}>Approve</Button>
-          <Button variant="destructive" onClick={async () => {
-            await supabase.from('budget_requests').update({ status: 'rejected' }).eq('id', params.id);
-            fetchData();
-          }}>Reject</Button>
+          <Button onClick={() => updateStatus('approved')}>Approve</Button>
+          <Button variant="destructive" onClick={() => updateStatus('rejected')}>Reject</Button>
         </div>
       )}
     </div>
