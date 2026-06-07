@@ -2,18 +2,19 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount }) {
-  console.log('=== logActivityAction called ===');
-  console.log('action:', action);
-  console.log('entityType:', entityType);
-  console.log('amount received:', amount, typeof amount);
+  // Ensure amount is a number or null
+  let numericAmount = null;
+  if (amount !== undefined && amount !== null) {
+    const parsed = parseFloat(amount);
+    if (!isNaN(parsed)) numericAmount = parsed;
+  }
+
+  console.log(`Logging: action=${action}, amount=${numericAmount}`);
 
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No user found');
-      return;
-    }
+    if (!user) return;
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -21,10 +22,7 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
-    const numericAmount = amount !== undefined && amount !== null && !isNaN(parseFloat(amount)) ? parseFloat(amount) : null;
-    console.log('numericAmount to insert:', numericAmount);
-
-    const { data: inserted, error } = await supabase.from('activity_logs').insert({
+    const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: profile?.role || 'unknown',
@@ -34,13 +32,9 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       old_data: oldData,
       new_data: newData,
       amount: numericAmount,
-    }).select();
+    });
 
-    if (error) {
-      console.error('Insert error:', error);
-    } else {
-      console.log('Insert successful, row:', inserted);
-    }
+    if (error) console.error('Insert error:', error);
   } catch (err) {
     console.error('Exception:', err);
   }
