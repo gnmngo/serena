@@ -1,12 +1,19 @@
 'use server';
 import { createClient } from '@/utils/supabase/server';
 
-export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount = null }) {
-  console.log('logActivityAction called with amount:', amount); // debug
+export async function logActivityAction({ action, entityType, entityId, oldData, newData, amount }) {
+  console.log('=== logActivityAction called ===');
+  console.log('action:', action);
+  console.log('entityType:', entityType);
+  console.log('amount received:', amount, typeof amount);
+
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      console.log('No user found');
+      return;
+    }
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -14,9 +21,10 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
-    const numericAmount = (amount !== null && amount !== undefined && !isNaN(parseFloat(amount))) ? parseFloat(amount) : null;
+    const numericAmount = amount !== undefined && amount !== null && !isNaN(parseFloat(amount)) ? parseFloat(amount) : null;
+    console.log('numericAmount to insert:', numericAmount);
 
-    const { error } = await supabase.from('activity_logs').insert({
+    const { data: inserted, error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
       user_role: profile?.role || 'unknown',
@@ -26,9 +34,14 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       old_data: oldData,
       new_data: newData,
       amount: numericAmount,
-    });
-    if (error) console.error('Insert error:', error);
+    }).select();
+
+    if (error) {
+      console.error('Insert error:', error);
+    } else {
+      console.log('Insert successful, row:', inserted);
+    }
   } catch (err) {
-    console.error('Failed to log activity:', err);
+    console.error('Exception:', err);
   }
 }
