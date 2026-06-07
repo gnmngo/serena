@@ -5,18 +5,29 @@ import { Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { logActivity } from '@/lib/auditLogger';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
-  const [form, setForm] = useState({ transaction_date: '', description: '', amount: '', category: 'expense' });
+  const [form, setForm] = useState({
+    transaction_date: '',
+    description: '',
+    amount: '',
+    category: 'expense'
+  });
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null, name: '' });
   const supabase = createClient();
 
-  useEffect(() => { fetchTransactions(); }, []);
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   async function fetchTransactions() {
-    const { data } = await supabase.from('budget_transactions').select('*').order('transaction_date', { ascending: false });
+    const { data } = await supabase
+      .from('budget_transactions')
+      .select('*')
+      .order('transaction_date', { ascending: false });
     setTransactions(data || []);
     setLoading(false);
   }
@@ -24,26 +35,72 @@ export default function BudgetTransactions() {
   async function addTransaction(e) {
     e.preventDefault();
     const amountNum = parseFloat(form.amount);
-    if (isNaN(amountNum)) { toast.error('Invalid amount'); return; }
-    const { error } = await supabase.from('budget_transactions').insert({
-      transaction_date: form.transaction_date,
-      description: form.description,
-      amount: amountNum,
-      category: form.category,
-    });
-    if (error) toast.error('Error adding transaction');
-    else {
+    if (isNaN(amountNum)) {
+      toast.error('Invalid amount');
+      return;
+    }
+
+    const { data: inserted, error } = await supabase
+      .from('budget_transactions')
+      .insert({
+        transaction_date: form.transaction_date,
+        description: form.description,
+        amount: amountNum,
+        category: form.category,
+      })
+      .select();
+
+    if (error) {
+      toast.error('Error adding transaction');
+    } else {
       toast.success('Transaction added');
-      setForm({ transaction_date: '', description: '', amount: '', category: 'expense' });
+      // Log the activity
+      if (inserted && inserted.length > 0) {
+        await logActivity({
+          action: 'INSERT',
+          entityType: 'budget_transaction',
+          entityId: inserted[0].id,
+          newData: {
+            amount: amountNum,
+            description: form.description,
+            category: form.category,
+          },
+        });
+      }
+      setForm({
+        transaction_date: '',
+        description: '',
+        amount: '',
+        category: 'expense',
+      });
       fetchTransactions();
     }
   }
 
   async function deleteTransaction(id) {
-    const { error } = await supabase.from('budget_transactions').delete().eq('id', id);
-    if (error) toast.error('Error deleting');
-    else {
+    // Fetch the transaction data before deleting for logging
+    const { data: toDelete } = await supabase
+      .from('budget_transactions')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    const { error } = await supabase
+      .from('budget_transactions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error deleting');
+    } else {
       toast.success('Transaction deleted');
+      // Log the activity
+      await logActivity({
+        action: 'DELETE',
+        entityType: 'budget_transaction',
+        entityId: id,
+        oldData: toDelete,
+      });
       fetchTransactions();
     }
   }
@@ -55,15 +112,51 @@ export default function BudgetTransactions() {
       <div className="space-y-6 animate-fadeInUp">
         <h1 className="text-3xl font-bold">Budget Transactions</h1>
         <form onSubmit={addTransaction} className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <input type="date" className="border p-2 rounded" value={form.transaction_date} onChange={e => setForm({...form, transaction_date: e.target.value})} required />
-          <input type="text" placeholder="Description" className="border p-2 rounded" value={form.description} onChange={e => setForm({...form, description: e.target.value})} required />
-          <input type="number" step="0.01" placeholder="Amount" className="border p-2 rounded" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
-          <select className="border p-2 rounded" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-            <option value="income">Income</option><option value="expense">Expense</option><option value="allocation">Allocation</option>
+          <input
+            type="date"
+            className="border p-2 rounded"
+            value={form.transaction_date}
+            onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Description"
+            className="border p-2 rounded"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            required
+          />
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Amount"
+            className="border p-2 rounded"
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            required
+          />
+          <select
+            className="border p-2 rounded"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+            <option value="allocation">Allocation</option>
           </select>
-          <button type="submit" className="bg-[#343434] text-white p-2 rounded col-span-full flex items-center justify-center gap-2"><Plus size={16} /> Add Transaction</button>
+          <button
+            type="submit"
+            className="bg-[#343434] text-white p-2 rounded col-span-full flex items-center justify-center gap-2"
+          >
+            <Plus size={16} /> Add Transaction
+          </button>
         </form>
-        <EmptyState icon="💰" title="No transactions yet" description="Add your first budget transaction using the form above." />
+        <EmptyState
+          icon="💰"
+          title="No transactions yet"
+          description="Add your first budget transaction using the form above."
+        />
       </div>
     );
   }
@@ -71,14 +164,49 @@ export default function BudgetTransactions() {
   return (
     <div className="space-y-6 animate-fadeInUp">
       <h1 className="text-3xl font-bold">Budget Transactions</h1>
-      <form onSubmit={addTransaction} className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <input type="date" className="border p-2 rounded" value={form.transaction_date} onChange={e => setForm({...form, transaction_date: e.target.value})} required />
-        <input type="text" placeholder="Description" className="border p-2 rounded" value={form.description} onChange={e => setForm({...form, description: e.target.value})} required />
-        <input type="number" step="0.01" placeholder="Amount" className="border p-2 rounded" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
-        <select className="border p-2 rounded" value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-          <option value="income">Income</option><option value="expense">Expense</option><option value="allocation">Allocation</option>
+      <form
+        onSubmit={addTransaction}
+        className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3"
+      >
+        <input
+          type="date"
+          className="border p-2 rounded"
+          value={form.transaction_date}
+          onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
+          required
+        />
+        <input
+          type="text"
+          placeholder="Description"
+          className="border p-2 rounded"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          required
+        />
+        <input
+          type="number"
+          step="0.01"
+          placeholder="Amount"
+          className="border p-2 rounded"
+          value={form.amount}
+          onChange={(e) => setForm({ ...form, amount: e.target.value })}
+          required
+        />
+        <select
+          className="border p-2 rounded"
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+        >
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+          <option value="allocation">Allocation</option>
         </select>
-        <button type="submit" className="bg-[#343434] text-white p-2 rounded col-span-full flex items-center justify-center gap-2"><Plus size={16} /> Add Transaction</button>
+        <button
+          type="submit"
+          className="bg-[#343434] text-white p-2 rounded col-span-full flex items-center justify-center gap-2"
+        >
+          <Plus size={16} /> Add Transaction
+        </button>
       </form>
 
       <div className="overflow-x-auto">
@@ -93,7 +221,7 @@ export default function BudgetTransactions() {
             </tr>
           </thead>
           <tbody>
-            {transactions.map(tx => (
+            {transactions.map((tx) => (
               <tr key={tx.id} className="border-t">
                 <td className="p-2">{new Date(tx.transaction_date).toLocaleDateString()}</td>
                 <td className="p-2">{tx.description}</td>
@@ -102,7 +230,10 @@ export default function BudgetTransactions() {
                 </td>
                 <td className="p-2 capitalize">{tx.category}</td>
                 <td className="p-2 text-center">
-                  <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700">
+                  <button
+                    onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })}
+                    className="text-red-500 hover:text-red-700"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </td>
