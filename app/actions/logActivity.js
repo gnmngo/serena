@@ -13,6 +13,9 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       .eq('id', user.id)
       .single();
 
+    // Convert amount to number if provided, else null
+    const numericAmount = (amount !== null && !isNaN(amount)) ? parseFloat(amount) : null;
+
     await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
@@ -22,7 +25,7 @@ export async function logActivityAction({ action, entityType, entityId, oldData,
       entity_id: entityId,
       old_data: oldData,
       new_data: newData,
-      amount,
+      amount: numericAmount,
     });
   } catch (err) {
     console.error('Failed to log activity:', err);
