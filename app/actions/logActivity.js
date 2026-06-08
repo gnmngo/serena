@@ -2,14 +2,15 @@
 import { createClient } from '@/utils/supabase/server';
 
 export async function logActivityAction({
-  action,           // 'create', 'delete', 'update'
+  action,           // 'create', 'update', 'delete', 'approve', 'reject', 'release'
   entityType,       // 'budget_transaction', 'announcement', etc.
-  entityName,       // human‑readable name (e.g. "CEC Week Venue")
+  entityName,
   entityId,
   amount = null,
   oldData = null,
   newData = null,
-  severity = 'MEDIUM'
+  severity = 'MEDIUM',
+  justification = null
 }) {
   try {
     const supabase = await createClient();
@@ -25,37 +26,41 @@ export async function logActivityAction({
     const userName = profile?.full_name || user.email.split('@')[0];
     const userRole = profile?.role || 'unknown';
 
-    // --- Build a human‑readable description ---
-    let humanDescription = '';
+    // Build human-readable summary
+    let actionSummary = '';
     if (entityType === 'budget_transaction') {
       const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
-      const desc = entityName || (newData?.description || oldData?.description || 'transaction');
-      const cat = (newData?.category || oldData?.category || 'transaction').toUpperCase();
+      const desc = entityName;
       if (action === 'create') {
-        humanDescription = `${userName} recorded a ${cat} transaction of ${amountStr} for “${desc}”.`;
+        actionSummary = `${userName} recorded a ${newData?.category?.toUpperCase() || 'transaction'} of ${amountStr} for “${desc}”.`;
       } else if (action === 'delete') {
-        humanDescription = `${userName} deleted a ${cat} transaction of ${amountStr} for “${desc}”.`;
-      } else {
-        humanDescription = `${userName} ${action}d a ${cat} transaction.`;
+        actionSummary = `${userName} deleted a ${oldData?.category?.toUpperCase() || 'transaction'} of ${amountStr} for “${desc}”.`;
+      } else if (action === 'update') {
+        const oldAmount = oldData?.amount ? `₱${Number(oldData.amount).toLocaleString()}` : 'an amount';
+        const newAmount = newData?.amount ? `₱${Number(newData.amount).toLocaleString()}` : 'an amount';
+        actionSummary = `${userName} updated ${desc} from ${oldAmount} to ${newAmount}.`;
       }
     } else {
-      humanDescription = `${userName} ${action}d ${entityName || entityType}.`;
+      actionSummary = `${userName} ${action}d ${entityName || entityType}.`;
     }
 
-    // --- Insert the log with the human description ---
-    const { error } = await supabase.from('activity_logs').insert({
+    const referenceNumber = `BT-${Date.now()}`;
+    const differenceAmount = (newData?.amount && oldData?.amount) ? newData.amount - oldData.amount : null;
+
+    const { error } = await supabase.from('audit_trail').insert({
+      reference_number: referenceNumber,
       user_id: user.id,
-      user_email: user.email,
-      user_role: userRole,
-      action,
+      user_name: userName,
+      role: userRole,
       entity_type: entityType,
-      entity_name: entityName,
-      entity_id: entityId,
-      amount: amount ? parseFloat(amount) : null,
+      action_type: action.charAt(0).toUpperCase() + action.slice(1),
+      action_summary: actionSummary,
+      amount: amount,
       old_data: oldData,
       new_data: newData,
+      difference_amount: differenceAmount,
+      justification,
       severity,
-      human_description: humanDescription,
     });
     if (error) console.error('Audit insert error:', error);
   } catch (err) {

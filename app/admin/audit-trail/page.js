@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, Eye, TrendingUp, TrendingDown, AlertTriangle, X } from 'lucide-react';
+import { Search, Download, Eye, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 
@@ -25,18 +25,6 @@ function getSeverityBadge(severity) {
     CRITICAL: 'bg-red-100 text-red-700',
   };
   return <Badge className={styles[severity] || 'bg-gray-100'}>{severity}</Badge>;
-}
-
-function getActionBadge(action) {
-  const colors = {
-    Create: 'bg-green-100 text-green-700',
-    Update: 'bg-blue-100 text-blue-700',
-    Delete: 'bg-red-100 text-red-700',
-    Approve: 'bg-emerald-100 text-emerald-700',
-    Reject: 'bg-rose-100 text-rose-700',
-    Release: 'bg-purple-100 text-purple-700',
-  };
-  return <Badge className={colors[action] || 'bg-gray-100'}>{action}</Badge>;
 }
 
 export default function AuditTrailPage() {
@@ -138,7 +126,6 @@ export default function AuditTrailPage() {
     <div className="space-y-6 animate-fadeInUp">
       <h1 className="text-3xl font-bold">Governance Accountability Audit Trail</h1>
 
-      {/* Accountability Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total Financial Actions</p><p className="text-2xl font-bold">{stats.totalActions}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total Amount Processed</p><p className="text-2xl font-bold text-green-600">₱{stats.totalAmount.toLocaleString()}</p></CardContent></Card>
@@ -148,7 +135,6 @@ export default function AuditTrailPage() {
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Critical Actions</p><p className="text-2xl font-bold text-red-500">{stats.critical}</p></CardContent></Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
         <CardContent>
@@ -189,12 +175,10 @@ export default function AuditTrailPage() {
                     <td className="px-4 py-2 text-sm whitespace-nowrap">{formatPHTime(log.created_at)}</td>
                     <td className="px-4 py-2 text-sm">{log.user_name}</td>
                     <td className="px-4 py-2 text-sm capitalize">{log.role}</td>
-                    <td className="px-4 py-2 text-sm">{getActionBadge(log.action_type)}</td>
+                    <td className="px-4 py-2 text-sm">{log.action_type}</td>
                     <td className="px-4 py-2 text-sm">{log.entity_type}</td>
                     <td className="px-4 py-2 text-sm max-w-md truncate">{log.action_summary}</td>
-                    <td className="px-4 py-2 text-sm text-right font-mono">
-                      {log.amount ? <span className="text-green-600">₱{log.amount.toLocaleString()}</span> : '-'}
-                    </td>
+                    <td className="px-4 py-2 text-sm text-right font-mono">{log.amount ? `₱${log.amount.toLocaleString()}` : '-'}</td>
                     <td className="px-4 py-2 text-sm">{getSeverityBadge(log.severity)}</td>
                     <td className="px-4 py-2 text-center">
                       <Button variant="ghost" size="sm" onClick={() => { setSelectedLog(log); setShowDetails(true); }}><Eye className="h-4 w-4" /></Button>
@@ -216,44 +200,34 @@ export default function AuditTrailPage() {
         </>
       )}
 
-      {/* Details Modal with Before/After Comparison */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
         <DialogContent className="max-w-3xl">
           <DialogHeader><DialogTitle>Audit Record Details</DialogTitle></DialogHeader>
           {selectedLog && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-sm font-medium">Reference Number</p><p className="font-mono">{selectedLog.reference_number}</p></div>
-                <div><p className="text-sm font-medium">Date & Time (PH)</p><p>{formatPHTime(selectedLog.created_at)}</p></div>
-                <div><p className="text-sm font-medium">User</p><p>{selectedLog.user_name} ({selectedLog.role})</p></div>
-                <div><p className="text-sm font-medium">Action Type</p><p>{selectedLog.action_type}</p></div>
-                <div><p className="text-sm font-medium">Entity</p><p>{selectedLog.entity_type}</p></div>
-                <div><p className="text-sm font-medium">Severity</p><p>{selectedLog.severity}</p></div>
-                <div className="col-span-2"><p className="text-sm font-medium">Action Summary</p><p>{selectedLog.action_summary}</p></div>
-                {selectedLog.old_data && selectedLog.new_data && (
-                  <div className="col-span-2 border-t pt-4">
-                    <p className="text-sm font-medium mb-2">Change History</p>
-                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded">
-                      <div>
-                        <p className="text-xs text-gray-500">Before</p>
-                        <pre className="text-sm">{JSON.stringify(selectedLog.old_data, null, 2)}</pre>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">After</p>
-                        <pre className="text-sm">{JSON.stringify(selectedLog.new_data, null, 2)}</pre>
-                      </div>
-                    </div>
-                    {selectedLog.difference_amount !== null && (
-                      <div className="mt-2 text-right">
-                        <span className={`text-sm font-mono ${selectedLog.difference_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          Difference: ₱{Math.abs(selectedLog.difference_amount).toLocaleString()} {selectedLog.difference_amount >= 0 ? 'increase' : 'decrease'}
-                        </span>
-                      </div>
-                    )}
+              <div><p className="text-sm font-medium">Reference Number</p><p className="font-mono">{selectedLog.reference_number}</p></div>
+              <div><p className="text-sm font-medium">Date & Time (PH)</p><p>{formatPHTime(selectedLog.created_at)}</p></div>
+              <div><p className="text-sm font-medium">User</p><p>{selectedLog.user_name} ({selectedLog.role})</p></div>
+              <div><p className="text-sm font-medium">Action Type</p><p>{selectedLog.action_type}</p></div>
+              <div><p className="text-sm font-medium">Entity</p><p>{selectedLog.entity_type}</p></div>
+              <div><p className="text-sm font-medium">Severity</p><p>{selectedLog.severity}</p></div>
+              <div><p className="text-sm font-medium">Action Summary</p><p>{selectedLog.action_summary}</p></div>
+              {selectedLog.old_data && selectedLog.new_data && (
+                <div className="border-t pt-3">
+                  <p className="text-sm font-medium mb-2">Change History</p>
+                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded">
+                    <div><p className="text-xs text-gray-500">Before</p><pre className="text-sm">{JSON.stringify(selectedLog.old_data, null, 2)}</pre></div>
+                    <div><p className="text-xs text-gray-500">After</p><pre className="text-sm">{JSON.stringify(selectedLog.new_data, null, 2)}</pre></div>
                   </div>
-                )}
-                <div className="col-span-2"><p className="text-sm font-medium">Justification</p><p>{selectedLog.justification || 'Not provided'}</p></div>
-              </div>
+                  {selectedLog.difference_amount !== null && (
+                    <div className="mt-2 text-right">
+                      <span className={`text-sm font-mono ${selectedLog.difference_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Difference: ₱{Math.abs(selectedLog.difference_amount).toLocaleString()} {selectedLog.difference_amount >= 0 ? 'increase' : 'decrease'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
