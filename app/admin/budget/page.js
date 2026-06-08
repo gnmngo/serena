@@ -5,7 +5,7 @@ import { Trash2, Plus, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { recordAudit } from '@/lib/auditLogger';
+import { logActivityAction } from '@/actions/logActivity';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -56,14 +56,17 @@ export default function BudgetTransactions() {
     } else {
       toast.success('Transaction added');
       if (inserted && inserted.length > 0) {
-        const newData = { description: form.description, amount: amountNum, category: form.category, date: form.transaction_date };
-        await recordAudit({
-          referenceNumber: `BT-${Date.now()}`,
-          entityType: 'Budget Transaction',
-          actionType: 'Create',
-          actionSummary: `Created a ${form.category.toUpperCase()} transaction of ₱${amountNum.toLocaleString()} for “${form.description}”.`,
+        await logActivityAction({
+          action: 'create',
+          entityType: 'budget_transaction',
+          entityName: form.description,
+          entityId: inserted[0].id,
           amount: amountNum,
-          newData,
+          newData: {
+            description: form.description,
+            category: form.category,
+            date: form.transaction_date,
+          },
           severity: 'HIGH',
         });
       }
@@ -78,7 +81,6 @@ export default function BudgetTransactions() {
     const amountNum = parseFloat(form.amount);
     if (isNaN(amountNum)) return;
 
-    const newData = { description: form.description, amount: amountNum, category: form.category, date: form.transaction_date };
     const { error } = await supabase
       .from('budget_transactions')
       .update({
@@ -93,16 +95,14 @@ export default function BudgetTransactions() {
       toast.error('Error updating');
     } else {
       toast.success('Transaction updated');
-      const difference = amountNum - old.amount;
-      await recordAudit({
-        referenceNumber: `BT-${Date.now()}`,
-        entityType: 'Budget Transaction',
-        actionType: 'Update',
-        actionSummary: `Updated ${old.category.toUpperCase()} transaction from ₱${old.amount.toLocaleString()} to ₱${amountNum.toLocaleString()} for “${form.description}”.`,
+      await logActivityAction({
+        action: 'update',
+        entityType: 'budget_transaction',
+        entityName: form.description,
+        entityId: id,
         amount: amountNum,
         oldData: { description: old.description, amount: old.amount, category: old.category, date: old.transaction_date },
-        newData,
-        differenceAmount: difference,
+        newData: { description: form.description, amount: amountNum, category: form.category, date: form.transaction_date },
         severity: 'HIGH',
       });
       setEditId(null);
@@ -115,25 +115,29 @@ export default function BudgetTransactions() {
     const toDelete = transactions.find(t => t.id === id);
     if (!toDelete) return;
 
+    // Optimistic UI update: remove immediately
+    setTransactions(prev => prev.filter(t => t.id !== id));
+
     const { error } = await supabase
       .from('budget_transactions')
       .delete()
       .eq('id', id);
 
     if (error) {
+      // Rollback if deletion fails
       toast.error('Error deleting');
+      fetchTransactions();
     } else {
       toast.success('Transaction deleted');
-      await recordAudit({
-        referenceNumber: `BT-${Date.now()}`,
-        entityType: 'Budget Transaction',
-        actionType: 'Delete',
-        actionSummary: `Deleted a ${toDelete.category.toUpperCase()} transaction of ₱${toDelete.amount.toLocaleString()} for “${toDelete.description}”.`,
+      await logActivityAction({
+        action: 'delete',
+        entityType: 'budget_transaction',
+        entityName: toDelete.description,
+        entityId: id,
         amount: toDelete.amount,
         oldData: { description: toDelete.description, amount: toDelete.amount, category: toDelete.category, date: toDelete.transaction_date },
         severity: 'CRITICAL',
       });
-      fetchTransactions();
     }
   }
 
