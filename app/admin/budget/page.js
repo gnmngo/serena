@@ -5,7 +5,6 @@ import { Trash2, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { logActivityAction } from '@/actions/logActivity';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -32,6 +31,46 @@ export default function BudgetTransactions() {
     setLoading(false);
   }
 
+  // Direct audit logging function
+  async function addAuditLog(action, entityName, entityId, amount, oldData = null, newData = null) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single();
+
+    const userName = profile?.full_name || user.email.split('@')[0];
+    const userRole = profile?.role || 'unknown';
+    const category = (newData?.category || oldData?.category || form.category).toUpperCase();
+    const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
+
+    let humanDescription = '';
+    if (action === 'create') {
+      humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${entityName}”.`;
+    } else if (action === 'delete') {
+      humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${entityName}”.`;
+    }
+
+    const { error } = await supabase.from('activity_logs').insert({
+      user_id: user.id,
+      user_email: user.email,
+      user_role: userRole,
+      action: action === 'create' ? 'create' : 'delete',
+      entity_type: 'budget_transaction',
+      entity_name: entityName,
+      entity_id: entityId,
+      amount: amount,
+      old_data: oldData,
+      new_data: newData,
+      severity: action === 'create' ? 'HIGH' : 'CRITICAL',
+      human_description: humanDescription,
+    });
+    if (error) console.error('Audit log error:', error);
+  }
+
   async function addTransaction(e) {
     e.preventDefault();
     const amountNum = parseFloat(form.amount);
@@ -55,18 +94,10 @@ export default function BudgetTransactions() {
     } else {
       toast.success('Transaction added');
       if (inserted && inserted.length > 0) {
-        await logActivityAction({
-          action: 'create',
-          entityType: 'budget_transaction',
-          entityName: form.description,
-          entityId: inserted[0].id,
-          amount: amountNum,
-          newData: {
-            description: form.description,
-            category: form.category,
-            date: form.transaction_date,
-          },
-          severity: 'HIGH',
+        await addAuditLog('create', form.description, inserted[0].id, amountNum, null, {
+          description: form.description,
+          category: form.category,
+          date: form.transaction_date,
         });
       }
       setForm({
@@ -95,18 +126,10 @@ export default function BudgetTransactions() {
       toast.error('Error deleting');
     } else {
       toast.success('Transaction deleted');
-      await logActivityAction({
-        action: 'delete',
-        entityType: 'budget_transaction',
-        entityName: toDelete.description,
-        entityId: id,
-        amount: toDelete.amount,
-        oldData: {
-          description: toDelete.description,
-          category: toDelete.category,
-          date: toDelete.transaction_date,
-        },
-        severity: 'CRITICAL',
+      await addAuditLog('delete', toDelete.description, id, toDelete.amount, {
+        description: toDelete.description,
+        category: toDelete.category,
+        date: toDelete.transaction_date,
       });
       fetchTransactions();
     }
