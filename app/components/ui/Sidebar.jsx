@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import {
   Home, FileText, Megaphone, Users, Star, Lightbulb,
   Edit3, Settings, DollarSign, LogOut, UserCircle,
-  Wallet, TrendingUp, Calendar, MessageSquare, PieChart, Activity
+  Wallet, TrendingUp, Calendar, MessageSquare, PieChart, Activity, ShieldCheck
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -61,7 +61,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { name: 'Manage Suggestions', href: '/admin/suggestions', icon: MessageSquare },
     { name: 'Budget Requests', href: '/admin/budget-requests', icon: Wallet },
     { name: 'Budget Transactions', href: '/admin/budget', icon: TrendingUp },
-    { name: 'Activity Logs', href: '/admin/activity-logs', icon: Activity },
+    { name: 'Audit Trail', href: '/admin/audit-trail', icon: ShieldCheck },   // NEW – replaces old Activity Logs
     { name: 'Post Announcement', href: '/announcements/new', icon: Edit3 },
     { name: 'Add Document', href: '/transparency/new', icon: FileText },
   ];

@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { recordAudit } from '@/lib/auditLogger';
 
 export default function BudgetTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -14,6 +15,7 @@ export default function BudgetTransactions() {
     amount: '',
     category: 'expense'
   });
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null, name: '' });
   const supabase = createClient();
@@ -29,46 +31,6 @@ export default function BudgetTransactions() {
       .order('transaction_date', { ascending: false });
     setTransactions(data || []);
     setLoading(false);
-  }
-
-  // Direct audit logging function
-  async function addAuditLog(action, entityName, entityId, amount, oldData = null, newData = null) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, role')
-      .eq('id', user.id)
-      .single();
-
-    const userName = profile?.full_name || user.email.split('@')[0];
-    const userRole = profile?.role || 'unknown';
-    const category = (newData?.category || oldData?.category || form.category).toUpperCase();
-    const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
-
-    let humanDescription = '';
-    if (action === 'create') {
-      humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${entityName}”.`;
-    } else if (action === 'delete') {
-      humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${entityName}”.`;
-    }
-
-    const { error } = await supabase.from('activity_logs').insert({
-      user_id: user.id,
-      user_email: user.email,
-      user_role: userRole,
-      action: action === 'create' ? 'create' : 'delete',
-      entity_type: 'budget_transaction',
-      entity_name: entityName,
-      entity_id: entityId,
-      amount: amount,
-      old_data: oldData,
-      new_data: newData,
-      severity: action === 'create' ? 'HIGH' : 'CRITICAL',
-      human_description: humanDescription,
-    });
-    if (error) console.error('Audit log error:', error);
   }
 
   async function addTransaction(e) {
@@ -94,28 +56,64 @@ export default function BudgetTransactions() {
     } else {
       toast.success('Transaction added');
       if (inserted && inserted.length > 0) {
-        await addAuditLog('create', form.description, inserted[0].id, amountNum, null, {
-          description: form.description,
-          category: form.category,
-          date: form.transaction_date,
+        const newData = { description: form.description, amount: amountNum, category: form.category, date: form.transaction_date };
+        await recordAudit({
+          referenceNumber: `BT-${Date.now()}`,
+          entityType: 'Budget Transaction',
+          actionType: 'Create',
+          actionSummary: `Created a ${form.category.toUpperCase()} transaction of ₱${amountNum.toLocaleString()} for “${form.description}”.`,
+          amount: amountNum,
+          newData,
+          severity: 'HIGH',
         });
       }
-      setForm({
-        transaction_date: '',
-        description: '',
-        amount: '',
-        category: 'expense',
+      setForm({ transaction_date: '', description: '', amount: '', category: 'expense' });
+      fetchTransactions();
+    }
+  }
+
+  async function updateTransaction(id) {
+    const old = transactions.find(t => t.id === id);
+    if (!old) return;
+    const amountNum = parseFloat(form.amount);
+    if (isNaN(amountNum)) return;
+
+    const newData = { description: form.description, amount: amountNum, category: form.category, date: form.transaction_date };
+    const { error } = await supabase
+      .from('budget_transactions')
+      .update({
+        transaction_date: form.transaction_date,
+        description: form.description,
+        amount: amountNum,
+        category: form.category,
+      })
+      .eq('id', id);
+
+    if (error) {
+      toast.error('Error updating');
+    } else {
+      toast.success('Transaction updated');
+      const difference = amountNum - old.amount;
+      await recordAudit({
+        referenceNumber: `BT-${Date.now()}`,
+        entityType: 'Budget Transaction',
+        actionType: 'Update',
+        actionSummary: `Updated ${old.category.toUpperCase()} transaction from ₱${old.amount.toLocaleString()} to ₱${amountNum.toLocaleString()} for “${form.description}”.`,
+        amount: amountNum,
+        oldData: { description: old.description, amount: old.amount, category: old.category, date: old.transaction_date },
+        newData,
+        differenceAmount: difference,
+        severity: 'HIGH',
       });
+      setEditId(null);
+      setForm({ transaction_date: '', description: '', amount: '', category: 'expense' });
       fetchTransactions();
     }
   }
 
   async function deleteTransaction(id) {
-    const { data: toDelete } = await supabase
-      .from('budget_transactions')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const toDelete = transactions.find(t => t.id === id);
+    if (!toDelete) return;
 
     const { error } = await supabase
       .from('budget_transactions')
@@ -126,14 +124,28 @@ export default function BudgetTransactions() {
       toast.error('Error deleting');
     } else {
       toast.success('Transaction deleted');
-      await addAuditLog('delete', toDelete.description, id, toDelete.amount, {
-        description: toDelete.description,
-        category: toDelete.category,
-        date: toDelete.transaction_date,
+      await recordAudit({
+        referenceNumber: `BT-${Date.now()}`,
+        entityType: 'Budget Transaction',
+        actionType: 'Delete',
+        actionSummary: `Deleted a ${toDelete.category.toUpperCase()} transaction of ₱${toDelete.amount.toLocaleString()} for “${toDelete.description}”.`,
+        amount: toDelete.amount,
+        oldData: { description: toDelete.description, amount: toDelete.amount, category: toDelete.category, date: toDelete.transaction_date },
+        severity: 'CRITICAL',
       });
       fetchTransactions();
     }
   }
+
+  const startEdit = (tx) => {
+    setEditId(tx.id);
+    setForm({
+      transaction_date: tx.transaction_date,
+      description: tx.description,
+      amount: tx.amount.toString(),
+      category: tx.category,
+    });
+  };
 
   if (loading) return <div className="p-8 text-center">Loading transactions...</div>;
 
@@ -160,7 +172,7 @@ export default function BudgetTransactions() {
   return (
     <div className="space-y-6 animate-fadeInUp">
       <h1 className="text-3xl font-bold">Budget Transactions</h1>
-      <form onSubmit={addTransaction} className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <form onSubmit={editId ? (e) => { e.preventDefault(); updateTransaction(editId); } : addTransaction} className="bg-white p-4 rounded-xl shadow mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3">
         <input type="date" className="border p-2 rounded" value={form.transaction_date} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} required />
         <input type="text" placeholder="Description" className="border p-2 rounded" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
         <input type="number" step="0.01" placeholder="Amount" className="border p-2 rounded" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
@@ -169,7 +181,12 @@ export default function BudgetTransactions() {
           <option value="expense">Expense</option>
           <option value="allocation">Allocation</option>
         </select>
-        <button type="submit" className="bg-[#343434] text-white p-2 rounded col-span-full flex items-center justify-center gap-2"><Plus size={16} /> Add Transaction</button>
+        <div className="col-span-full flex gap-2">
+          <button type="submit" className="bg-[#343434] text-white p-2 rounded flex-1 flex items-center justify-center gap-2">
+            {editId ? <Pencil size={16} /> : <Plus size={16} />} {editId ? 'Update' : 'Add'} Transaction
+          </button>
+          {editId && <button type="button" onClick={() => { setEditId(null); setForm({ transaction_date: '', description: '', amount: '', category: 'expense' }); }} className="bg-gray-300 text-black p-2 rounded">Cancel</button>}
+        </div>
       </form>
 
       <div className="overflow-x-auto">
@@ -180,7 +197,7 @@ export default function BudgetTransactions() {
               <th className="p-2 text-left">Description</th>
               <th className="p-2 text-right">Amount</th>
               <th className="p-2 text-left">Category</th>
-              <th className="p-2 text-center">Action</th>
+              <th className="p-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -192,17 +209,15 @@ export default function BudgetTransactions() {
                   ₱{Math.abs(tx.amount).toLocaleString()}
                 </td>
                 <td className="p-2 capitalize">{tx.category}</td>
-                <td className="p-2 text-center">
-                  <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700">
-                    <Trash2 size={16} />
-                  </button>
+                <td className="p-2 text-center space-x-2">
+                  <button onClick={() => startEdit(tx)} className="text-blue-500 hover:text-blue-700"><Pencil size={16} /></button>
+                  <button onClick={() => setDeleteModal({ open: true, id: tx.id, name: tx.description })} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {transactions.length === 0 && <div className="text-center py-8 text-gray-500">No transactions found.</div>}
 
       <ConfirmDialog
         isOpen={deleteModal.open}
