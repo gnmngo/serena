@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function logActivityAction({
   action,           // 'create', 'delete', 'update'
   entityType,       // 'budget_transaction', 'announcement', etc.
-  entityName,       // Human‑readable name (e.g. "CEC Week Venue")
+  entityName,       // human‑readable name (e.g. "CEC Week Venue")
   entityId,
   amount = null,
   oldData = null,
@@ -25,23 +25,24 @@ export async function logActivityAction({
     const userName = profile?.full_name || user.email.split('@')[0];
     const userRole = profile?.role || 'unknown';
 
-    // Build a simple, guaranteed human-readable description
+    // --- Build a human‑readable description ---
     let humanDescription = '';
     if (entityType === 'budget_transaction') {
       const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
       const desc = entityName || (newData?.description || oldData?.description || 'transaction');
-      const category = (newData?.category || oldData?.category || 'transaction').toUpperCase();
+      const cat = (newData?.category || oldData?.category || 'transaction').toUpperCase();
       if (action === 'create') {
-        humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${desc}”.`;
+        humanDescription = `${userName} recorded a ${cat} transaction of ${amountStr} for “${desc}”.`;
       } else if (action === 'delete') {
-        humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${desc}”.`;
+        humanDescription = `${userName} deleted a ${cat} transaction of ${amountStr} for “${desc}”.`;
       } else {
-        humanDescription = `${userName} ${action}d a ${category} transaction.`;
+        humanDescription = `${userName} ${action}d a ${cat} transaction.`;
       }
     } else {
       humanDescription = `${userName} ${action}d ${entityName || entityType}.`;
     }
 
+    // --- Insert the log with the human description ---
     const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
@@ -56,9 +57,8 @@ export async function logActivityAction({
       severity,
       human_description: humanDescription,
     });
-
-    if (error) console.error('Audit log insert error:', error);
+    if (error) console.error('Audit insert error:', error);
   } catch (err) {
-    console.error('Audit log exception:', err);
+    console.error('Audit exception:', err);
   }
 }

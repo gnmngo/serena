@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Search, Download, Eye, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -18,17 +16,13 @@ function formatPHTime(utcDateString) {
 }
 
 function getSeverityBadge(severity) {
-  const variantMap = {
-    LOW: 'secondary',
-    MEDIUM: 'default',
-    HIGH: 'destructive',
-    CRITICAL: 'destructive',
+  const styles = {
+    LOW: 'bg-gray-100 text-gray-700',
+    MEDIUM: 'bg-blue-100 text-blue-700',
+    HIGH: 'bg-orange-100 text-orange-700',
+    CRITICAL: 'bg-red-100 text-red-700',
   };
-  // Use Badge with variant and custom styling for critical/high
-  if (severity === 'CRITICAL') return <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">CRITICAL</Badge>;
-  if (severity === 'HIGH') return <Badge variant="destructive" className="bg-orange-100 text-orange-700">HIGH</Badge>;
-  if (severity === 'MEDIUM') return <Badge variant="secondary" className="bg-blue-100 text-blue-700">MEDIUM</Badge>;
-  return <Badge variant="outline" className="bg-gray-100">LOW</Badge>;
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[severity] || 'bg-gray-100'}`}>{severity}</span>;
 }
 
 export default function ActivityLogsPage() {
@@ -133,7 +127,7 @@ export default function ActivityLogsPage() {
     <div className="space-y-6 animate-fadeInUp">
       <h1 className="text-3xl font-bold">Governance Accountability Audit Trail</h1>
 
-      {/* Financial Summary Cards */}
+      {/* Financial summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total Financial Actions</p><p className="text-2xl font-bold">{financialStats.totalActions}</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total Amount Processed</p><p className="text-2xl font-bold text-green-600">₱{financialStats.totalAmount.toLocaleString()}</p></CardContent></Card>
@@ -208,12 +202,15 @@ export default function ActivityLogsPage() {
         </>
       )}
 
-      {/* Details Modal – using shadcn Dialog */}
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Audit Record Details</DialogTitle></DialogHeader>
-          {selectedLog && (
-            <div className="space-y-2">
+      {/* Details Modal */}
+      {showDetails && selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold">Audit Record Details</h3>
+              <button onClick={() => setShowDetails(false)} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-2">
               <p><strong>Performed By:</strong> {selectedLog.user_email} ({selectedLog.user_role})</p>
               <p><strong>Date & Time:</strong> {formatPHTime(selectedLog.created_at)}</p>
               <p><strong>Action Summary:</strong> {selectedLog.human_description || `${selectedLog.action} ${selectedLog.entity_type}`}</p>
@@ -224,9 +221,9 @@ export default function ActivityLogsPage() {
               {selectedLog.new_data && <p><strong>New Value:</strong> <pre className="text-xs bg-gray-100 p-2 rounded">{JSON.stringify(selectedLog.new_data, null, 2)}</pre></p>}
               {selectedLog.reference_number && <p><strong>Reference Number:</strong> {selectedLog.reference_number}</p>}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
