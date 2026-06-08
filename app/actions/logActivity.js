@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function logActivityAction({
   action,           // 'create', 'delete', 'update'
   entityType,       // 'budget_transaction', 'announcement', etc.
-  entityName,       // human‑readable name (e.g., "CEC Week Venue")
+  entityName,       // Human‑readable name (e.g. "CEC Week Venue")
   entityId,
   amount = null,
   oldData = null,
@@ -29,12 +29,12 @@ export async function logActivityAction({
     let humanDescription = '';
     if (entityType === 'budget_transaction') {
       const amountStr = amount ? `₱${Number(amount).toLocaleString()}` : 'an amount';
-      const description = entityName || (newData?.description || oldData?.description || 'transaction');
+      const desc = entityName || (newData?.description || oldData?.description || 'transaction');
       const category = (newData?.category || oldData?.category || 'transaction').toUpperCase();
       if (action === 'create') {
-        humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${description}”.`;
+        humanDescription = `${userName} recorded a ${category} transaction of ${amountStr} for “${desc}”.`;
       } else if (action === 'delete') {
-        humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${description}”.`;
+        humanDescription = `${userName} deleted a ${category} transaction of ${amountStr} for “${desc}”.`;
       } else {
         humanDescription = `${userName} ${action}d a ${category} transaction.`;
       }
@@ -42,7 +42,6 @@ export async function logActivityAction({
       humanDescription = `${userName} ${action}d ${entityName || entityType}.`;
     }
 
-    // Insert with explicit human_description
     const { error } = await supabase.from('activity_logs').insert({
       user_id: user.id,
       user_email: user.email,
